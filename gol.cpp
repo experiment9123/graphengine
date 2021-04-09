@@ -16,6 +16,8 @@ struct Cell {	// a plugin 'Node' type for the GraphEngine template,implementing 
 	int num_neighbours=0;	// 'message accumulator' held permanently in the cell. (TODO .. seperate accumulator type?)
 	bool alive=false;
 
+	// called to determine if it should send messages.
+	bool is_active() const{return alive;}
 	// called along each outgoing edge from this node
 	Message_t generate_message(const Edge_t& e) const{
 		// for a neural net, 'Edge' weighting would be used here
@@ -37,9 +39,7 @@ struct Cell {	// a plugin 'Node' type for the GraphEngine template,implementing 
 			
 		}
 
-
 		num_neighbours=0;
-
 	}
 	void draw() {
 	}

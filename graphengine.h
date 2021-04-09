@@ -61,7 +61,7 @@ public:
 		m_building=false;
 		// todo sort indices for locality...
 
-		std::sort(m_edges.begin(),m_edges.end(), [](auto& a,auto& b){return a.start>b.start;});
+		std::sort(m_edges.begin(),m_edges.end(), [](auto& a,auto& b){return a.start<b.start;});
 		for (auto& n:m_nodes){n.numEdges=0;}
 		INDEX lastNodeId=-1;
 		for (INDEX ei=0; ei<m_edges.size(); ei++){ 
@@ -72,16 +72,19 @@ public:
 	}
 	void update() {
 		GE_ASSERT(!m_building)
-		// TODO - active list management, and parallel!
 		// pass 1: send the message from each node
+		// TODO - active list management, and parallel!
+		// - this should only be called for a current 'active list'
 		for (size_t i=0; i<m_nodes.size(); i++) {
 			auto& node=m_nodes[i];
+			if (!node.data.is_active()) continue;	// skip this if not active.
 			auto edge=&m_edges[node.firstEdgeIndex];
 			for (size_t j=0; j<node.numEdges; j++,edge++) {
 				auto& other=m_nodes[edge->end];
 				auto msg=node.data.generate_message(edge->data);
 
 				other.data.receive_message(msg);
+				// todo - everything that receives a message should be added to the active list.
 			}
 		}
 		// pass 2: update the edges, nodes stay constant. (learning rules can affect edges..)
