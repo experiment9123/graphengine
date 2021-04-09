@@ -12,21 +12,26 @@ clang++ gol.cpp -lSDL2 && ./a.out
 #define TRACE printf("%s:%s:%d\n",__FILE__,__FUNCTION__,__LINE__);
 typedef bool Message;
 struct Edge;
-struct Cell {
-	typedef bool Message_t;
-	typedef ::Edge Edge_t;
+struct Cell {	// a plugin 'Node' type for the GraphEngine template,implementing GoL
+	// typedefs for the associated type are extracted by the template param defaults. you can specifiy them manually aswell to avoid this
+	typedef bool Message_t;	// the message type
+	typedef ::Edge Edge_t;	// edge edge type connecting nodes.
 	int x,y;
-	int num_neighbours=0;
-	int color=0;
+	int num_neighbours=0;	// 'message accumulator' held permanently in the cell. (TODO .. seperate accumulator type?)
 	bool alive=false;
+
+	// called along each outgoing edge from this node
 	Message_t generate_message(const Edge_t& e) const{
-		// for a neural net, the 'edge' itself
+		// for a neural net, 'Edge' weighting would be used here
+		// for game of life the message is merely "1" or "0"
 		return this->alive;
 	}
+	// called for each incoming Edge to this node
 	void receive_message(const Message_t& msg) {
 		if (msg) {num_neighbours++;}
 
 	}
+	// called once all the messages have been received.
 	void update() {
 
 		if (!alive) {
@@ -159,7 +164,14 @@ int main(int argc, const char** argv) {
 				}
 			}
 			if (e.type==SDL_KEYDOWN){
-				paused^=1;
+				switch (e.key.keysym.sym) {
+					case SDLK_SPACE: paused^=1;break;
+					case SDLK_RETURN: 
+						for (int i=0; i<500; i++){
+							gol.m_nodes[rand()%gol.m_nodes.size()].alive=true;
+						}
+					break;
+				}
 			}
 		}
 		
@@ -171,7 +183,7 @@ int main(int argc, const char** argv) {
 		SDL_RenderClear(rs);
 		render(rs,gol);
 		SDL_RenderPresent(rs);
-		SDL_Delay(100);
+		SDL_Delay(50);
 	}
 
 
