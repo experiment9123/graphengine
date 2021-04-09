@@ -1,4 +1,3 @@
-
 illustration of an templated "graph engine", a collection describing a graph with update rules , with a niave single threaded unoptimised implementation.
 intended to faciliate experiments with spiking neural nets.
 "conways game of life" implemented using this engine.
@@ -12,4 +11,5 @@ The edge types also have an update step
 the intention is to decouple node behaviour from a later optimised parallel implementation
 
 
+![](/IMG_3818.jpeg)
 
