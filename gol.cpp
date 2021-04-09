@@ -1,3 +1,4 @@
+
 #include "stdio.h"
 #include "graphengine.h"
 #include <SDL2/SDL.h>
@@ -44,9 +45,9 @@ struct Edge {
 };
 
 void init_grid(GraphEngine<Cell>& gol) {
-	const int numx=128;
-	const int numy=128;
-	const int spacing=4;
+	const int numx=64;
+	const int numy=64;
+	const int spacing=16;
 	for (int y=0; y<numy; y++) {
 		for (int x=0; x<numx; x++) {
 			Cell c;
@@ -83,7 +84,7 @@ void render(SDL_Renderer* rs, GraphEngine<Cell>& gol) {
 		else
 			SDL_SetRenderDrawColor(rs,32,32,32,255);
 		SDL_Rect rc;
-		int s=1;
+		int s=4;
 		rc.x=node.x-s;
 		rc.y=node.y-s;
 		rc.w=s*2;
