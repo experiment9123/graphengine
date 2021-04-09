@@ -26,7 +26,10 @@ concept GraphEdge = requires(const NODE& n0,const NODE& n1,const EDGE& e,const M
 */
 
 
-template<typename NODE,typename EDGE=typename NODE::Edge_t,typename MESSAGE=typename NODE::Message_t,typename INDEX=uint32_t>
+template<typename NODE,
+	typename EDGE=float,
+	typename MESSAGE=decltype(NODE().generate_message(EDGE())),
+	typename INDEX=uint32_t>
 class GraphEngine {
 	struct GraphEdge {
 		EDGE data;
@@ -103,6 +106,12 @@ public:
 		}
 	}
 	void for_each_node(std::function<void(NODE& n)> f) { for (auto& n:m_nodes){ f(n.data);} }
+	void for_each_edge(std::function<void(const EDGE& e, const NODE& n0,const NODE& n1)> f)const{
+		for (auto& e:m_edges){
+			f(e.data,m_nodes[e.start].data,m_nodes[e.end].data);
+		}
+	}
+	void for_each_node(std::function<void(const NODE& n)> f) const{ for (auto& n:m_nodes){ f(n.data);} }
 
 };
 

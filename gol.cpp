@@ -11,21 +11,19 @@ struct Edge;
 struct Cell {	// a plugin 'Node' type for the GraphEngine template,implementing GoL
 	// typedefs for the associated type are extracted by the template param defaults. you can specifiy them manually aswell to avoid this
 	int x,y;
-	typedef bool Message_t;	// the message type
-	typedef ::Edge Edge_t;	// edge edge type connecting nodes.
 	int num_neighbours=0;	// 'message accumulator' held permanently in the cell. (TODO .. seperate accumulator type?)
 	bool alive=false;
 
 	// called to determine if it should send messages.
 	bool is_active() const{return alive;}
 	// called along each outgoing edge from this node
-	Message_t generate_message(const Edge_t& e) const{
+	Message generate_message(const Edge& e) const{
 		// for a neural net, 'Edge' weighting would be used here
 		// for game of life the message is merely "1" or "0"
 		return this->alive;
 	}
 	// called for each incoming Edge to this node
-	void receive_message(const Message_t& msg) {
+	void receive_message(const Message& msg) {
 		if (msg) {num_neighbours++;}
 
 	}
@@ -53,7 +51,9 @@ struct Edge {
 	}
 };
 
-void init_grid(GraphEngine<Cell>& gol,int winx,int winy) {
+typedef GraphEngine<Cell,Edge> MyGraph;
+
+void init_grid(MyGraph& gol,int winx,int winy) {
 	gol.begin_building();
 	const int numx=64;
 	const int numy=64;
@@ -97,7 +97,7 @@ void init_grid(GraphEngine<Cell>& gol,int winx,int winy) {
 	gol.end_building();
 }
 
-void render(SDL_Renderer* rs, GraphEngine<Cell>& gol) {
+void render(SDL_Renderer* rs, const MyGraph& gol) {
 	SDL_SetRenderDrawBlendMode(rs,SDL_BLENDMODE_BLEND);
 	gol.for_each_edge([&](auto& edge,auto& n0,auto& n1) {
 		auto dx=(n1.x-n0.x);
@@ -134,7 +134,7 @@ int main(int argc, const char** argv) {
 	
 
 	SDL_CreateWindowAndRenderer(width,height,SDL_WINDOW_OPENGL,&win, &rs);
-	GraphEngine<Cell> gol;
+	MyGraph gol;
 	// initialise cells in a grid
 	init_grid(gol,width,height);
 	bool running=true;
