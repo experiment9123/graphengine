@@ -74,8 +74,8 @@ void init_grid(GraphEngine<Cell>& gol,int winx,int winy) {
 	for (int y=0; y<numy; y++) {
 		for (int x=0; x<numx; x++) {
 			Cell c;
-			c.x=x*spacing;
-			c.y=y*spacing;
+			c.x=x*spacing+spacing/2;
+			c.y=y*spacing+spacing/2;
 			auto f= (x&3)+(y&3);
 			c.alive=((rand()&7)+1)<f?true:false;
 			auto id=gol.create_node(c);
@@ -113,9 +113,10 @@ void render(SDL_Renderer* rs, GraphEngine<Cell>& gol) {
 	for (auto& edge:gol.m_edges) {
 		auto& n0=gol.m_nodes[edge.start];
 		auto& n1=gol.m_nodes[edge.end];
-		SDL_SetRenderDrawColor(rs,0,128,255,32);
 		auto dx=(n1.x-n0.x);
 		auto dy=(n1.y-n0.y);
+		auto alpha=(dx*dx+dy*dy>64*64)?8:64; /// draw longer links feinter for clarity
+		SDL_SetRenderDrawColor(rs,0,128,255,alpha);
 		
 //		if (dx<-32 || dx>32 || dy<-32 || dy>32)continue;// hack , dont draw the wraparound links, they look messy
 		SDL_RenderDrawLine(rs, n0.x,n0.y, n0.x+dx,n0.y+dy);
