@@ -104,12 +104,15 @@ void init_grid(GraphEngine<Cell>& gol) {
 }
 
 void render(SDL_Renderer* rs, GraphEngine<Cell>& gol) {
+	SDL_SetRenderDrawBlendMode(rs,SDL_BLENDMODE_BLEND);
 	for (auto& edge:gol.m_edges) {
 		auto& n0=gol.m_nodes[edge.start];
 		auto& n1=gol.m_nodes[edge.end];
-		SDL_SetRenderDrawColor(rs,128,128,128,255);
-		auto dx=(n1.x-n0.x)/2;
-		auto dy=(n1.y-n0.y)/2;
+		SDL_SetRenderDrawColor(rs,0,128,255,32);
+		auto dx=(n1.x-n0.x);
+		auto dy=(n1.y-n0.y);
+		
+//		if (dx<-32 || dx>32 || dy<-32 || dy>32)continue;// hack , dont draw the wraparound links, they look messy
 		SDL_RenderDrawLine(rs, n0.x,n0.y, n0.x+dx,n0.y+dy);
 	}	
 
@@ -141,6 +144,7 @@ int main(int argc, const char** argv) {
 	// initialise cells in a grid
 	init_grid(gol);
 	bool running=true;
+	bool paused=false;
 	while (running) {
 		SDL_Event e;
 		while (SDL_PollEvent(&e)) {
@@ -153,11 +157,12 @@ int main(int argc, const char** argv) {
 				}
 			}
 			if (e.type==SDL_KEYDOWN){
-				gol.update();
-			
+				paused^=1;
 			}
 		}
 		
+		if (!paused)
+			gol.update();
 		
 
 		SDL_SetRenderDrawColor(rs,0,0,0,255);
