@@ -17,6 +17,7 @@ struct Cell {
 	typedef ::Edge Edge_t;
 	int x,y;
 	int num_neighbours=0;
+	int color=0;
 	bool alive=false;
 	Message_t generate_message(const Edge_t& e) const{
 		// for a neural net, the 'edge' itself
@@ -27,10 +28,17 @@ struct Cell {
 
 	}
 	void update() {
-		if (num_neighbours>3 || num_neighbours<2) alive=false;
-		if (num_neighbours==3) alive=true;
+
+		if (!alive) {
+			if (num_neighbours==3) alive=true;
+		} else {
+			if (num_neighbours>3 || num_neighbours<2) alive=false;
+			
+		}
+
 
 		num_neighbours=0;
+
 	}
 	void draw() {
 	}
@@ -45,20 +53,30 @@ struct Edge {
 };
 
 void init_grid(GraphEngine<Cell>& gol) {
-	const int numx=64;
-	const int numy=64;
+	const int numx=32;
+	const int numy=32;
 	const int spacing=16;
+
+	auto gridindex=[](int i,int j){
+		if (i<0) i+=numx;
+		if (j<0) j+=numy;
+		i%=numx;
+		j%=numy;
+		return i+j*numx;
+	
+	};
+
 	for (int y=0; y<numy; y++) {
 		for (int x=0; x<numx; x++) {
 			Cell c;
 			c.x=x*spacing;
 			c.y=y*spacing;
-			auto f= (x&15)+(y&15);
-			c.alive=(rand()&31)<f?true:false;
-			gol.create_node(c);
+			auto f= (x&3)+(y&3);
+			c.alive=false;//((rand()&7)+3)<f?true:false;
+			auto id=gol.create_node(c);
+
 		}
 	}
-	auto gridindex=[](int x,int y){return ((x+numx-1)%numx)+((y+numy-1)%numy)*numx;};
 	for (int y=0; y<numy; y++) {
 		for (int x=0; x<numx; x++) {
 			int index=gridindex(x,y);
@@ -66,7 +84,22 @@ void init_grid(GraphEngine<Cell>& gol) {
 			gol.create_edge(Edge{}, index,gridindex(x+1,y));
 			gol.create_edge(Edge{}, index,gridindex(x,y-1));
 			gol.create_edge(Edge{}, index,gridindex(x,y+1));
+
+			gol.create_edge(Edge{}, index,gridindex(x-1,y-1));
+			gol.create_edge(Edge{}, index,gridindex(x+1,y-1));
+			gol.create_edge(Edge{}, index,gridindex(x-1,y+1));
+			gol.create_edge(Edge{}, index,gridindex(x+1,y+1));
+
 		}
+	}
+	for (int i=0; i<10; i++) {
+		auto x=rand()&63;
+		auto y=rand()&63;
+		gol.m_nodes[gridindex(x,y-1)].alive=true;
+		gol.m_nodes[gridindex(x+1,y)].alive=true;
+		gol.m_nodes[gridindex(x+1,y+1)].alive=true;
+		gol.m_nodes[gridindex(x+0,y+1)].alive=true;
+		gol.m_nodes[gridindex(x-1,y+1)].alive=true;
 	}
 }
 
@@ -75,7 +108,9 @@ void render(SDL_Renderer* rs, GraphEngine<Cell>& gol) {
 		auto& n0=gol.m_nodes[edge.start];
 		auto& n1=gol.m_nodes[edge.end];
 		SDL_SetRenderDrawColor(rs,128,128,128,255);
-		SDL_RenderDrawLine(rs, n0.x,n0.y,n1.x,n1.y);
+		auto dx=(n1.x-n0.x)/2;
+		auto dy=(n1.y-n0.y)/2;
+		SDL_RenderDrawLine(rs, n0.x,n0.y, n0.x+dx,n0.y+dy);
 	}	
 
 	for (auto& node:gol.m_nodes) {
@@ -83,8 +118,9 @@ void render(SDL_Renderer* rs, GraphEngine<Cell>& gol) {
 			SDL_SetRenderDrawColor(rs,255,255,255,255);
 		else
 			SDL_SetRenderDrawColor(rs,32,32,32,255);
+
 		SDL_Rect rc;
-		int s=4;
+		int s=3;
 		rc.x=node.x-s;
 		rc.y=node.y-s;
 		rc.w=s*2;
@@ -116,10 +152,13 @@ int main(int argc, const char** argv) {
 					running=false;
 				}
 			}
+			if (e.type==SDL_KEYDOWN){
+				gol.update();
+			
+			}
 		}
 		
 		
-		gol.update();
 
 		SDL_SetRenderDrawColor(rs,0,0,0,255);
 		SDL_RenderClear(rs);
