@@ -52,10 +52,10 @@ struct Edge {
 	}
 };
 
-void init_grid(GraphEngine<Cell>& gol) {
-	const int numx=32;
-	const int numy=32;
-	const int spacing=16;
+void init_grid(GraphEngine<Cell>& gol,int winx,int winy) {
+	const int numx=64;
+	const int numy=64;
+	const int spacing=winx/numx;
 
 	auto gridindex=[](int i,int j){
 		if (i<0) i+=numx;
@@ -72,7 +72,7 @@ void init_grid(GraphEngine<Cell>& gol) {
 			c.x=x*spacing;
 			c.y=y*spacing;
 			auto f= (x&3)+(y&3);
-			c.alive=false;//((rand()&7)+3)<f?true:false;
+			c.alive=((rand()&7)+1)<f?true:false;
 			auto id=gol.create_node(c);
 
 		}
@@ -95,7 +95,7 @@ void init_grid(GraphEngine<Cell>& gol) {
 	for (int i=0; i<10; i++) {
 		auto x=rand()&63;
 		auto y=rand()&63;
-		gol.m_nodes[gridindex(x,y-1)].alive=true;
+		gol.m_nodes[gridindex(x+0,y-1)].alive=true;
 		gol.m_nodes[gridindex(x+1,y)].alive=true;
 		gol.m_nodes[gridindex(x+1,y+1)].alive=true;
 		gol.m_nodes[gridindex(x+0,y+1)].alive=true;
@@ -137,12 +137,14 @@ int main(int argc, const char** argv) {
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_Window* win=SDL_CreateWindow("graph engine test",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,1024,768,0);
 	SDL_Renderer* rs=SDL_CreateRenderer(win,0,0);
+	int width=1024;
+	int height=1024;
 	
 
-	SDL_CreateWindowAndRenderer(1024,768,SDL_WINDOW_OPENGL,&win, &rs);
+	SDL_CreateWindowAndRenderer(width,height,SDL_WINDOW_OPENGL,&win, &rs);
 	GraphEngine<Cell> gol;
 	// initialise cells in a grid
-	init_grid(gol);
+	init_grid(gol,width,height);
 	bool running=true;
 	bool paused=false;
 	while (running) {
