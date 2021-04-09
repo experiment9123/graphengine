@@ -5,18 +5,14 @@
 #include <stdio.h>
 
 
-
-/*
-clang++ gol.cpp -lSDL2 && ./a.out
-*/
 #define TRACE printf("%s:%s:%d\n",__FILE__,__FUNCTION__,__LINE__);
 typedef bool Message;
 struct Edge;
 struct Cell {	// a plugin 'Node' type for the GraphEngine template,implementing GoL
 	// typedefs for the associated type are extracted by the template param defaults. you can specifiy them manually aswell to avoid this
+	int x,y;
 	typedef bool Message_t;	// the message type
 	typedef ::Edge Edge_t;	// edge edge type connecting nodes.
-	int x,y;
 	int num_neighbours=0;	// 'message accumulator' held permanently in the cell. (TODO .. seperate accumulator type?)
 	bool alive=false;
 
@@ -58,6 +54,7 @@ struct Edge {
 };
 
 void init_grid(GraphEngine<Cell>& gol,int winx,int winy) {
+	gol.begin_building();
 	const int numx=64;
 	const int numy=64;
 	const int spacing=winx/numx;
@@ -97,22 +94,12 @@ void init_grid(GraphEngine<Cell>& gol,int winx,int winy) {
 
 		}
 	}
-	for (int i=0; i<10; i++) {
-		auto x=rand()&63;
-		auto y=rand()&63;
-		gol.m_nodes[gridindex(x+0,y-1)].alive=true;
-		gol.m_nodes[gridindex(x+1,y)].alive=true;
-		gol.m_nodes[gridindex(x+1,y+1)].alive=true;
-		gol.m_nodes[gridindex(x+0,y+1)].alive=true;
-		gol.m_nodes[gridindex(x-1,y+1)].alive=true;
-	}
+	gol.end_building();
 }
 
 void render(SDL_Renderer* rs, GraphEngine<Cell>& gol) {
 	SDL_SetRenderDrawBlendMode(rs,SDL_BLENDMODE_BLEND);
-	for (auto& edge:gol.m_edges) {
-		auto& n0=gol.m_nodes[edge.start];
-		auto& n1=gol.m_nodes[edge.end];
+	gol.for_each_edge([&](auto& edge,auto& n0,auto& n1) {
 		auto dx=(n1.x-n0.x);
 		auto dy=(n1.y-n0.y);
 		auto alpha=(dx*dx+dy*dy>64*64)?8:64; /// draw longer links feinter for clarity
@@ -120,9 +107,8 @@ void render(SDL_Renderer* rs, GraphEngine<Cell>& gol) {
 		
 //		if (dx<-32 || dx>32 || dy<-32 || dy>32)continue;// hack , dont draw the wraparound links, they look messy
 		SDL_RenderDrawLine(rs, n0.x,n0.y, n0.x+dx,n0.y+dy);
-	}	
-
-	for (auto& node:gol.m_nodes) {
+	});
+	gol.for_each_node([&](auto& node){
 		if (node.alive)
 			SDL_SetRenderDrawColor(rs,255,255,255,255);
 		else
@@ -135,7 +121,7 @@ void render(SDL_Renderer* rs, GraphEngine<Cell>& gol) {
 		rc.w=s*2;
 		rc.h=s*2;
 		SDL_RenderFillRect(rs,&rc);
-	}
+	});
 		
 }
 
@@ -167,11 +153,6 @@ int main(int argc, const char** argv) {
 			if (e.type==SDL_KEYDOWN){
 				switch (e.key.keysym.sym) {
 					case SDLK_SPACE: paused^=1;break;
-					case SDLK_RETURN: 
-						for (int i=0; i<500; i++){
-							gol.m_nodes[rand()%gol.m_nodes.size()].alive=true;
-						}
-					break;
 				}
 			}
 		}
