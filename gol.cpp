@@ -3,7 +3,7 @@
 #include "graphengine.h"
 #include <SDL2/SDL.h>
 #include <stdio.h>
-
+#include "flyaround/vecmathnew.h"
 
 #define TRACE printf("%s:%s:%d\n",__FILE__,__FUNCTION__,__LINE__);
 typedef bool Message;
@@ -65,7 +65,6 @@ void init_grid(MyGraph& gol,int winx,int winy) {
 		i%=numx;
 		j%=numy;
 		return i+j*numx;
-	
 	};
 
 	for (int y=0; y<numy; y++) {
