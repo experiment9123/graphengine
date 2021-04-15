@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-// pub mod whatever would go here
+// pub mod whatever would go here for more src
 
 #[cfg(test)]
 mod tests {
@@ -68,6 +68,17 @@ impl<N,E,I:MyIndex> Graph<N,E,I>{
 		
 		for (i,a) in acc.iter().enumerate(){
 			updater(&mut self.nodes[i],a)
+		}
+	}
+
+	pub fn foreach_node<F:FnMut(&N)>(&self,mut f:F) {
+		for n in self.nodes.iter() { f(n) }
+	}
+	pub fn foreach_edge<F:FnMut(&E,&N,&N)>(&self,mut f:F) {
+		for &(ref e,(si,ei)) in self.edges.iter() { 
+			f(e,
+				&self.nodes[si.to_usize()],
+				&self.nodes[ei.to_usize()] ) 
 		}
 	}
 

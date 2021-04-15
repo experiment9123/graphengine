@@ -1,5 +1,5 @@
 extern crate rustgraph;
-use rustgraph::*;
+
 
 fn main(){
 	let mut graph:Graph<String,String>= Graph::new(); // test the graph type with Strings for nodes & edges
@@ -14,7 +14,9 @@ fn main(){
 		|node,allmsg:&u32|{node.push_str(&format!("has {} incoming edges",allmsg))}		// update the node once  all messages are accumulated.
 	);
 	println!("graph after update:\n {:?}\n",graph);
-	
+	graph.foreach_edge(|e,n0,n1|{
+		println!("edge:{} start{} end{}\n", e,n0,n1);
+	});
 }
 
 
