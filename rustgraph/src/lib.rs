@@ -2,7 +2,8 @@
 #![allow(unused_imports)]
 pub mod vecmath;
 pub use vecmath::*;
-use std::ops::{Mul,Add,Index,AddAssign};
+use std::{cmp,ops};
+use ops::{Mul,Add,Index,AddAssign};
 
 // pub mod whatever would go here for more src
 
@@ -15,7 +16,7 @@ mod tests {
 }
 
 
-pub trait MyIndex :Copy+Default{ fn to_usize(self)->usize; fn from_usize(u:usize)->Self; }
+pub trait MyIndex :Copy+Default+Ord{ fn to_usize(self)->usize; fn from_usize(u:usize)->Self; }
 impl MyIndex for u32 { fn to_usize(self)->usize{self as usize}  fn from_usize(u:usize)->Self {u as u32}}
 impl MyIndex for usize { fn to_usize(self)->usize{self as usize}  fn from_usize(u:usize)->Self {u as usize}}
 
@@ -27,17 +28,15 @@ struct SparseMatrixCOO<T,Index=u32> {
 
 impl<T,Index:MyIndex> SparseMatrixCOO<T,Index> {
 	fn new()->Self{SparseMatrixCOO{rows_columns:(Index::default(),Index::default()),values:vec![]}}
-	fn foreach_mut<F:Fn(&mut T,(Index,Index))>(&mut self,f:F) {
-		for &mut (ref mut v,rc) in self.values.iter_mut() {
-			f(v,rc)
-		}
-	}
-	fn push(&mut self, val_rc:(T,(Index,Index))){
-		self.values.push(val_rc);
+	fn push(&mut self, (v,(r,c)):(T,(Index,Index))){
+		// when inserting elements just assume the whole size must contain them.
+		self.rows_columns=(cmp::max(r,self.rows_columns.0),cmp::max(c,self.rows_columns.1));
+		self.values.push((v,(r,c)));
 	}
 }
-trait SparseMatrix<A,Index:MyIndex>
+trait SparseMatrix<A,I:MyIndex>
 {
+	fn foreach_mut<F:Fn(&mut A,(I,I))>(&mut self,f:F);
 	fn mul_dense_vec<B,C>(&self,src:&Vec<B>)->Vec<C> where
 		for <'x,'y> &'x A:Mul<&'y B,Output=C>,
 		C:'static+Default+AddAssign+Clone;
@@ -45,6 +44,7 @@ trait SparseMatrix<A,Index:MyIndex>
 
 impl<A,I:MyIndex> SparseMatrix<A,I> for SparseMatrixCOO<A,I> 
 {
+
 	fn mul_dense_vec<B,C>(&self,src:&Vec<B>)->Vec<C> where
 		for <'x,'y> &'x A:Mul<&'y B,Output=C>,
 		C:'static+Default+AddAssign+Clone
@@ -58,6 +58,13 @@ impl<A,I:MyIndex> SparseMatrix<A,I> for SparseMatrixCOO<A,I>
 		}
 		res
 	}
+
+	fn foreach_mut<F:Fn(&mut A,(I,I))>(&mut self,f:F) {
+		for &mut (ref mut v,rc) in self.values.iter_mut() {
+			f(v,rc)
+		}
+	}
+
 }
 
 /*
