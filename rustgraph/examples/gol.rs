@@ -13,7 +13,7 @@ use sdl2::render::{Canvas, Texture, TextureCreator,BlendMode};
 use sdl2::video::{Window, WindowContext};
 use rand::Rng;
 
-pub fn win_stuff<R:FnMut(&mut sdl2::render::Canvas<Window>)>(mut renderf:R)->Result<(),String> {
+pub fn win_stuff<R:FnMut(&mut Canvas<Window>)>(mut renderf:R)->Result<(),String> {
 	let sdl_context = sdl2::init()?;
 	let video_subsystem = sdl_context.video()?;
 
@@ -65,57 +65,91 @@ pub fn win_stuff<R:FnMut(&mut sdl2::render::Canvas<Window>)>(mut renderf:R)->Res
 			}
 	Ok(())
 }
-struct Cell {pos:(f32,f32),alive:bool}
+#[derive(Default,Clone)]
+struct Edge{}
 
-fn init_gol_grid(graph:&mut Graph<Cell,()>) {
+
+struct Cell {pos:Vec2,alive:bool}
+
+impl std::ops::Mul<&Cell> for &Edge {
+	type Output=u32;
+	fn mul(self,rhs:&Cell)->Self::Output{ if rhs.alive{1u32}else{0u32}}
+}
+
+
+fn init_gol_grid(graph:&mut Graph<Cell,Edge>) {
 	let mut rng=rand::thread_rng();
 	let spacing:i32=1024/64;
 	let gridindex=|x,y|((x&63)+(y&63)*64) as u32;
 	for y in 0i32..64i32 {
 		for x in 0i32..64i32 {
-			graph.add_node(Cell{pos:((x*spacing+spacing/2) as f32,(y*spacing+spacing/2) as f32),alive: rand::random()});
+			graph.add_node(Cell{pos:Vec2((x*spacing+spacing/2) as f32,(y*spacing+spacing/2) as f32),alive: rand::random()});
 		}
 	}	
 	for y in 0i32..64i32 {
 		for x in 0i32..64i32 {
-			graph.add_edge((), gridindex(x,y),gridindex(x+1,y));
-			graph.add_edge((), gridindex(x,y),gridindex(x-1,y));
-			graph.add_edge((), gridindex(x,y),gridindex(x,y+1));
-			graph.add_edge((), gridindex(x,y),gridindex(x,y-1));
-			graph.add_edge((), gridindex(x,y),gridindex(x+1,y+1));
-			graph.add_edge((), gridindex(x,y),gridindex(x+1,y-1));
-			graph.add_edge((), gridindex(x,y),gridindex(x-1,y+1));
-			graph.add_edge((), gridindex(x,y),gridindex(x-1,y-1));
+			graph.add_edge(Edge{}, gridindex(x,y),gridindex(x+1,y));
+			graph.add_edge(Edge{}, gridindex(x,y),gridindex(x-1,y));
+			graph.add_edge(Edge{}, gridindex(x,y),gridindex(x,y+1));
+			graph.add_edge(Edge{}, gridindex(x,y),gridindex(x,y-1));
+			graph.add_edge(Edge{}, gridindex(x,y),gridindex(x+1,y+1));
+			graph.add_edge(Edge{}, gridindex(x,y),gridindex(x+1,y-1));
+			graph.add_edge(Edge{}, gridindex(x,y),gridindex(x-1,y+1));
+			graph.add_edge(Edge{}, gridindex(x,y),gridindex(x-1,y-1));
 		}
 	}
 }
-fn pt((x,y):(f32,f32))->Point {
-	Point::new(x as i32,y as i32)
+fn pt(p:Vec2)->Point {
+	Point::new(p.0 as i32,p.1 as i32)
 }
+
+fn line2d(rc:&mut Canvas<Window>, a:Vec2,b:Vec2){
+	rc.draw_line(pt(a),pt(b));
+}
+
+struct CompactedJaggedArray<T,Index=usize> {
+	first_index:Vec<Index>,
+	values:Vec<T>
+}
+
+impl<T,Index> CompactedJaggedArray<T,Index> {
+	fn new()->Self {return CompactedJaggedArray{first_index:vec![],values:vec![]}}
+	fn from_vec(src:&Vec<Vec<T>>)->Self {
+		let mut counts:Vec<usize>=vec![0;src.len()];
+		for (i,x) in src.iter().enumerate() { counts[i]+=1;}
+		return Self::new();		
+	}
+}
+
+
 fn main(){
-	let mut graph:Graph<Cell,()>= Graph::new();
+	let mut graph:Graph<Cell,Edge>= Graph::new();
  	init_gol_grid(&mut graph);
 
 	win_stuff(
 	|canvas|{
 		graph.update_along_edges(
-			|n,e|{n.alive},
-			|acc:&mut u32,m|{if m{*acc+=1}},
-			|n,&acc|{
-				if acc<2 || acc>3{n.alive=false} else
-				if acc==3{n.alive=true}
+			// generate message
+//			|node,e|{node.alive},
+			//// accumulate received messages
+//			|acc:&mut u32,msg|{if msg{*acc+=1}},
+			// update node with received messages
+			|node,&acc|{
+				if acc<2 || acc>3{node.alive=false} else
+				if acc==3{node.alive=true}
 			}
 		);
 
 		canvas.set_draw_color(Color::RGB(0, 0, 0));
 		canvas.clear();
 
-		let s:i32=2;
+		let s:i32=2;                                                                                   
 
 		canvas.set_blend_mode(BlendMode::Blend);
 		graph.foreach_edge(|e,n0,n1|{
 			canvas.set_draw_color(Color::RGBA(128, 128,128,16));
-			canvas.draw_line(pt(n0.pos),pt(n1.pos));
+			line2d(canvas,n0.pos,n1.pos);
+
 		});
 
 		graph.foreach_node(|n|{
