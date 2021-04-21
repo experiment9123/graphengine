@@ -18,17 +18,27 @@ mod tests {
 
 
 pub trait MyIndex :Copy+Default+Ord{ fn to_usize(self)->usize; fn from_usize(u:usize)->Self; }
-impl MyIndex for u32 { fn to_usize(self)->usize{self as usize}  fn from_usize(u:usize)->Self {u as u32}}
-impl MyIndex for usize { fn to_usize(self)->usize{self as usize}  fn from_usize(u:usize)->Self {u as usize}}
 
-#[derive(Debug,Default)]
+// macro to implement the 'MyIndex' type for all the primitive ints.
+macro_rules! impl_myindex{
+	($($t:ty),*)=>{
+		$(impl MyIndex for $t {
+			fn to_usize(self)->usize{self as usize}  
+			fn from_usize(u:usize)->Self {u as $t}
+		})*
+	}
+
+}
+impl_myindex!{u8,u16,u32,i8,i16,i32,usize}
+
+#[derive(Debug,Default,Clone)]
 pub struct SparseMatrixCOO<T,Index=u32> {
 	pub rows_columns:(Index,Index),
 	pub values:Vec<(T,(Index,Index))>,	// edge data
 }
 
 impl<T,Index:MyIndex> SparseMatrixCOO<T,Index> {
-//	pub fn new()->Self{SparseMatrixCOO{rows_columns:(Index::default(),Index::default()),values:vec![]}}
+	pub fn new()->Self{SparseMatrixCOO{rows_columns:(Index::default(),Index::default()),values:vec![]}}
 	pub fn push(&mut self, (v,(r,c)):(T,(Index,Index))){
 		// when inserting elements just assume the whole size must contain them.
 		self.rows_columns=(cmp::max(r,self.rows_columns.0),cmp::max(c,self.rows_columns.1));
@@ -69,18 +79,19 @@ impl<A,I:MyIndex> SparseMatrix<A,I> for SparseMatrixCOO<A,I>
 }
 
 
-impl<'a,'b, A,B,C,I:MyIndex>  Mul<&'b Vec<B>> for    &'a SparseMatrixCOO<A,I>
+impl<'a,'b,MatElem,VecElem,OutElem,I:MyIndex>  Mul<&'b Vec<VecElem>> for    &'a SparseMatrixCOO<MatElem,I>
    where
-	for<'x> &'x B:Add,
-        C:'static+AddAssign+Default+Clone,
-        for<'x,'y> &'x A: Mul<&'y B, Output=C>,
+//	Prod:Add<Prod,Output=Acc>,
+        for<'x,'y> &'x MatElem: Mul<&'y VecElem, Output=OutElem>,
+        OutElem:'a+'b+AddAssign<OutElem>+Default+Clone,
+
 
 {
-	type Output = Vec<C> ;
-	fn mul(self,src:&Vec<B>)->Self::Output {
+	type Output = Vec<OutElem> ;
+	fn mul(self,src:&Vec<VecElem>)->Self::Output {
 		let mut res=Vec::new();
 		// todo actually this just assumed it's a square matrix, which it needn't be.
-		res.resize(src.len(), C::default());
+		res.resize(src.len(), OutElem::default());
 		for (ref val,(row,col)) in self.values.iter() {
 			res[row.to_usize()]+=val*&src[col.to_usize()]
 		}
@@ -90,7 +101,7 @@ impl<'a,'b, A,B,C,I:MyIndex>  Mul<&'b Vec<B>> for    &'a SparseMatrixCOO<A,I>
 
 
 /// a 'Graph' pairs a node array with a sparse matrix of edge connections.
-#[derive(Debug)]
+#[derive(Debug,Default,Clone)]
 pub struct Graph<N,E,Index=u32>{
 	pub nodes:Vec<N>,
 	pub edges:SparseMatrixCOO<E,Index>
@@ -99,15 +110,10 @@ pub struct Graph<N,E,Index=u32>{
 
 impl<E,N,Prod, I:MyIndex> Graph<N,E,I> 
     where
-	E:Debug+Default, 
-	N:Debug+Default, 
-        for<'x,'y> &'x E:Mul<&'y N,Output=Prod>,
+	N:Debug+Clone, 
+        for<'x,'y> &'x E:Mul<&'y N,Output=Prod> + Debug+Clone,
         Prod:'static+AddAssign+Default+Clone
     {
-	
-	pub fn new()->Self{
-		Graph{nodes:vec![],edges:SparseMatrixCOO::default()}
-	}
 	pub fn add_node(&mut self,n:N)->I{
 		self.nodes.push(n);
 		MyIndex::from_usize(self.nodes.len()-1)		
@@ -137,7 +143,8 @@ impl<E,N,Prod, I:MyIndex> Graph<N,E,I>
 		)
 	{
 		let mut acc=vec![Prod::default();self.nodes.len()];
-		let acc = self.edges.mul_dense_vec(&self.nodes);
+//		let acc = self.edges.mul_dense_vec(&self.nodes);
+		let acc = &self.edges * &self.nodes;
 		
 		for (i,a) in acc.iter().enumerate(){	//todo - zip iterator
 			updater(&mut self.nodes[i],a)

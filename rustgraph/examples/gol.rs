@@ -124,17 +124,12 @@ impl<T,Index> CompactedJaggedArray<T,Index> {
 
 
 fn main(){
-	let mut graph:Graph<Cell,Edge>= Graph::new();
+	let mut graph:Graph<Cell,Edge>=  Graph::default();
  	init_gol_grid(&mut graph);
 
 	win_stuff(
 	|canvas|{
 		graph.update_along_edges(
-			// generate message
-//			|node,e|{node.alive},
-			//// accumulate received messages
-//			|acc:&mut u32,msg|{if msg{*acc+=1}},
-			// update node with received messages
 			|node,&acc|{
 				if acc<2 || acc>3{node.alive=false} else
 				if acc==3{node.alive=true}
