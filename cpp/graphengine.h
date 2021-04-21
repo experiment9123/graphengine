@@ -5,6 +5,7 @@
 #include <functional>
 
 #define GE_ASSERT(x) if (!(x)){printf("%s:%d error %s",__FILE__,__LINE__,#x);exit(0);}
+#define GE_TRACE() {printf("%s:%d\n",__FILE__,__LINE__);}
 
 
 /*
@@ -31,43 +32,90 @@ concept GraphEdge = requires(const NODE& n0,const NODE& n1,const EDGE& e,const M
 /// compressed formats to come..
 template<typename T,typename INDEX=uint32_t>
 struct SparseMatrixCOO {
-	std::array<INDEX,2> rows_columns;
-	struct Elem { T val; std::array<INDEX,2> pos;};
+	std::array<INDEX,2> rows_columns={0,0};
+	struct Elem { T val; INDEX row; INDEX column;};// less error prone to call these 'row,col' explicitely.
 	std::vector<Elem> values;
-	
+	void insert_at(const T& src, INDEX row,INDEX column){
+		rows_columns={std::max(rows_columns[0],row),std::max(rows_columns[1],column)};
+		values.push_back(Elem{src,row,column});
+	}
+	// iterator yields val,row,col
+	auto begin()const {return values.begin();}	
+	auto end()const {return values.begin();}	
 };
 
 /// trivial implementation of 'sparse matrix X dense vector'
+/// (parallel compressed sparse mat  X SPARSE vector is where it'll get highly non-trivial
+/// the trivial impl will verify functionality.
+///
+/// Output type decltype(A*B+A*B) - "accumulated messages". single message = A*B
 template<typename A,typename B,typename INDEX=uint32_t>
-std::vector<decltype(A()*B())> operator*(const SparseMatrixCOO<A,INDEX>& mat, const std::vector<B>& srcvec){
-	std::vector<decltype(A()*B())> result;
-	result.resize(mat.row_columns[0], 0);	// output vector, one 'accumulator slot' each.
+std::vector<decltype(A()*B()+A()*B())> operator*(const SparseMatrixCOO<A,INDEX>& mat, const std::vector<B>& srcvec){
+	std::vector<decltype(A()*B()+A()*B())> result;
+	result.resize(mat.rows_columns[0]);	// output vector, one 'accumulator slot' each.
 
 	for (auto& v : mat.values) {
-		result[v.pos[0]] += v.val * srcvec[ v.pos[1] ];
+		result[v.row] += v.val * srcvec[ v.column ];
 	}
+
 
 	return result;
 };
 
+
 /// WIP.. "graph engine" rewritten to hold connections in a SparseMatrix.
+/// switches to calling EDGE*NODE,+ to generate and accumulate messages.
+/// the 'message' may represent how that value changes in a time-step
 template<typename NODE,
 	typename EDGE=float,
-	typename MESSAGE=decltype(NODE().generate_message(EDGE())),
 	typename INDEX=uint32_t>
-class GraphUsingMatrix {
+class GraphWithEdgeMatrix {
 	std::vector<NODE>	m_nodes;
 	SparseMatrixCOO<EDGE>	m_edges;
 	typedef typename SparseMatrixCOO<EDGE>::Elem SMElem;
-
-	void create_edge(const EDGE& e,INDEX start,INDEX end){
-		m_edges.push_back(SMElem{e,{start,end}});
+public:
+	INDEX	create_node(const NODE& n) {
+		m_nodes.push_back(n);
+		return m_nodes.size()-1;
 	}
 
+	void create_edge(const EDGE& e,INDEX edge_start_index,INDEX edge_end_index){
+		// careful! matrix ROW index is output, matrix COLUMN index selects in the input
+		m_edges.insert_at(e,edge_end_index,edge_start_index);
+	}
+
+	void begin_building() {}
+	void end_building() {}
+	void update() {
+		// uses EDGE*NODE to generate messages, result "+=" to accumulate them
+		// then NODE+={result} to update the node.
+		auto accmsg = m_edges * m_nodes;
+		for (size_t i=0; i<accmsg.size(); i++) {
+			m_nodes[i].receive_message(accmsg[i]);
+			m_nodes[i].update();
+		}
+	}
+	// mutating version, 'update edges' = learning rule.
+	void for_each_edge(std::function<void(EDGE& e, const NODE& n0,const NODE& n1)> f){
+		for (auto& ep : m_edges) {
+			// TODO double check row/column index are right!
+			f( ep.val, m_nodes[ep.column_index],m_nodes[ep.row_index]);
+		}
+	}
+	void for_each_node(std::function<void(NODE& n)> f) { for (auto& n:m_nodes){ f(n);} }
+	void for_each_node(std::function<void(const NODE& n)> f) const{ for (auto& n:m_nodes){ f(n);} }
+
+	// non mutating version
+	void for_each_edge(std::function<void(const EDGE& e, const NODE& n0,const NODE& n1)> f)const{
+		for (auto& ep : m_edges) {
+			// TODO double check row/column index are right!
+			f( ep.val, m_nodes[ep.column],m_nodes[ep.row]);
+		}
+	}
 };
 
 
-
+/// 1st version of 'Graph Engine', holding edge & node structures together with node-edge lists etc.
 template<typename NODE,
 	typename EDGE=float,
 	typename MESSAGE=decltype(NODE().generate_message(EDGE())),

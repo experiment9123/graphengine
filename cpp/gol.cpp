@@ -6,8 +6,9 @@
 
 
 #define TRACE printf("%s:%s:%d\n",__FILE__,__FUNCTION__,__LINE__);
-typedef bool Message;
+typedef int32_t Message;
 struct Edge;
+
 struct Cell {	// a plugin 'Node' type for the GraphEngine template,implementing GoL
 	// typedefs for the associated type are extracted by the template param defaults. you can specifiy them manually aswell to avoid this
 	int x,y;
@@ -20,12 +21,11 @@ struct Cell {	// a plugin 'Node' type for the GraphEngine template,implementing 
 	Message generate_message(const Edge& e) const{
 		// for a neural net, 'Edge' weighting would be used here
 		// for game of life the message is merely "1" or "0"
-		return this->alive;
+		return this->alive?1:0;
 	}
 	// called for each incoming Edge to this node
 	void receive_message(const Message& msg) {
-		if (msg) {num_neighbours++;}
-
+		num_neighbours+=msg;
 	}
 	// called once all the messages have been received.
 	void update() {
@@ -42,6 +42,9 @@ struct Cell {	// a plugin 'Node' type for the GraphEngine template,implementing 
 	void draw() {
 	}
 };
+/// multiply operator is used to generate "graph messages" in the matrix version.
+auto operator*(const Edge& e, const Cell& c){return c.generate_message(e);}
+
 
 struct Edge {
 	// no data
@@ -51,7 +54,9 @@ struct Edge {
 	}
 };
 
-typedef GraphEngine<Cell,Edge> MyGraph;
+/// use either the newer "GraphWithEdgeMatrix" or older "GraphEngine" classes to describe the graph.
+typedef GraphWithEdgeMatrix<Cell,Edge> MyGraph;
+//typedef GraphEngine<Cell,Edge> MyGraph;
 
 void init_grid(MyGraph& gol,int winx,int winy) {
 	gol.begin_building();
@@ -156,8 +161,9 @@ int main(int argc, const char** argv) {
 			}
 		}
 		
-		if (!paused)
+		if (!paused){
 			gol.update();
+		}
 		
 
 		SDL_SetRenderDrawColor(rs,0,0,0,255);
