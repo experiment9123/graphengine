@@ -109,14 +109,11 @@ pub struct Graph<N,E,Index=u32>{
 
 
 
-impl<E,N,Acc,Prod,I:MyIndex> Graph<N,E,I> 
+impl<E,N,I:MyIndex> Graph<N,E,I> 
     where
 	N:Debug+Clone,
 	// TODO - single MulAcc trait eg E:MulAcc<N,Output=Acc>
 
-        for<'x,'y> &'x E:Mul<&'y N,Output=Prod> + Debug+Clone,
-        Prod:Add<Prod,Output=Acc>,
-        Acc:AddAssign<Prod>+Default+Clone
 
     {
 	pub fn add_node(&mut self,n:N)->I{
@@ -141,11 +138,16 @@ impl<E,N,Acc,Prod,I:MyIndex> Graph<N,E,I>
 		});
 	}
 
-	pub fn update_along_edges<UpdateF:Fn(&mut N,&Acc)>	// function to update node with accumulated messages 
+	pub fn update_along_edges<Prod,Acc,UpdateF:Fn(&mut N,&Acc)>	// function to update node with accumulated messages 
+	
 		(
 			&mut self,  
 			updater:UpdateF
-		)
+		) where
+		        for<'x,'y> &'x E:Mul<&'y N,Output=Prod> + Debug+Clone,
+        Prod:Add<Prod,Output=Acc>,
+        Acc:AddAssign<Prod>+Default+Clone
+
 	{
 		let mut acc=vec![Acc::default();self.nodes.len()];
 //		let acc = self.edges.mul_dense_vec(&self.nodes);
