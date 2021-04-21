@@ -79,11 +79,11 @@ impl<A,I:MyIndex> SparseMatrix<A,I> for SparseMatrixCOO<A,I>
 }
 
 
-impl<'a,'b,MatElem,VecElem,OutElem,I:MyIndex>  Mul<&'b Vec<VecElem>> for    &'a SparseMatrixCOO<MatElem,I>
+impl<'a,'b,MatElem,VecElem,Prod,OutElem,I:MyIndex>  Mul<&'b Vec<VecElem>> for    &'a SparseMatrixCOO<MatElem,I>
    where
-//	Prod:Add<Prod,Output=Acc>,
-        for<'x,'y> &'x MatElem: Mul<&'y VecElem, Output=OutElem>,
-        OutElem:'a+'b+AddAssign<OutElem>+Default+Clone,
+	Prod:Add<Prod,Output=OutElem>,
+        for<'x,'y> &'x MatElem: Mul<&'y VecElem, Output=Prod>,
+        OutElem:'a+'b+AddAssign<Prod>+Default+Clone,
 
 
 {
@@ -93,7 +93,7 @@ impl<'a,'b,MatElem,VecElem,OutElem,I:MyIndex>  Mul<&'b Vec<VecElem>> for    &'a 
 		// todo actually this just assumed it's a square matrix, which it needn't be.
 		res.resize(src.len(), OutElem::default());
 		for (ref val,(row,col)) in self.values.iter() {
-			res[row.to_usize()]+=val*&src[col.to_usize()]
+			res[row.to_usize()]+=val*&src[col.to_usize()];
 		}
 		res
 	}
@@ -108,11 +108,16 @@ pub struct Graph<N,E,Index=u32>{
 }
 
 
-impl<E,N,Prod, I:MyIndex> Graph<N,E,I> 
+
+impl<E,N,Acc,Prod,I:MyIndex> Graph<N,E,I> 
     where
-	N:Debug+Clone, 
+	N:Debug+Clone,
+	// TODO - single MulAcc trait eg E:MulAcc<N,Output=Acc>
+
         for<'x,'y> &'x E:Mul<&'y N,Output=Prod> + Debug+Clone,
-        Prod:'static+AddAssign+Default+Clone
+        Prod:Add<Prod,Output=Acc>,
+        Acc:AddAssign<Prod>+Default+Clone
+
     {
 	pub fn add_node(&mut self,n:N)->I{
 		self.nodes.push(n);
@@ -136,13 +141,13 @@ impl<E,N,Prod, I:MyIndex> Graph<N,E,I>
 		});
 	}
 
-	pub fn update_along_edges<UpdateF:Fn(&mut N,&Prod)>	// function to update node with accumulated messages 
+	pub fn update_along_edges<UpdateF:Fn(&mut N,&Acc)>	// function to update node with accumulated messages 
 		(
 			&mut self,  
 			updater:UpdateF
 		)
 	{
-		let mut acc=vec![Prod::default();self.nodes.len()];
+		let mut acc=vec![Acc::default();self.nodes.len()];
 //		let acc = self.edges.mul_dense_vec(&self.nodes);
 		let acc = &self.edges * &self.nodes;
 		
