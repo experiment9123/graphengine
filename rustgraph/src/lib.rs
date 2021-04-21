@@ -4,6 +4,7 @@ pub mod vecmath;
 pub use vecmath::*;
 use std::{cmp,ops};
 use ops::{Mul,Add,Index,AddAssign};
+use std::fmt::Debug;
 
 // pub mod whatever would go here for more src
 
@@ -21,20 +22,20 @@ impl MyIndex for u32 { fn to_usize(self)->usize{self as usize}  fn from_usize(u:
 impl MyIndex for usize { fn to_usize(self)->usize{self as usize}  fn from_usize(u:usize)->Self {u as usize}}
 
 #[derive(Debug,Default)]
-struct SparseMatrixCOO<T,Index=u32> {
+pub struct SparseMatrixCOO<T,Index=u32> {
 	pub rows_columns:(Index,Index),
 	pub values:Vec<(T,(Index,Index))>,	// edge data
 }
 
 impl<T,Index:MyIndex> SparseMatrixCOO<T,Index> {
-	fn new()->Self{SparseMatrixCOO{rows_columns:(Index::default(),Index::default()),values:vec![]}}
-	fn push(&mut self, (v,(r,c)):(T,(Index,Index))){
+//	pub fn new()->Self{SparseMatrixCOO{rows_columns:(Index::default(),Index::default()),values:vec![]}}
+	pub fn push(&mut self, (v,(r,c)):(T,(Index,Index))){
 		// when inserting elements just assume the whole size must contain them.
 		self.rows_columns=(cmp::max(r,self.rows_columns.0),cmp::max(c,self.rows_columns.1));
 		self.values.push((v,(r,c)));
 	}
 }
-trait SparseMatrix<A,I:MyIndex>
+pub trait SparseMatrix<A,I:MyIndex>
 {
 	fn foreach_mut<F:Fn(&mut A,(I,I))>(&mut self,f:F);
 	fn mul_dense_vec<B,C>(&self,src:&Vec<B>)->Vec<C> where
@@ -67,7 +68,7 @@ impl<A,I:MyIndex> SparseMatrix<A,I> for SparseMatrixCOO<A,I>
 
 }
 
-/*
+
 impl<'a,'b, A,B,C,I:MyIndex>  Mul<&'b Vec<B>> for    &'a SparseMatrixCOO<A,I>
    where
 	for<'x> &'x B:Add,
@@ -79,30 +80,33 @@ impl<'a,'b, A,B,C,I:MyIndex>  Mul<&'b Vec<B>> for    &'a SparseMatrixCOO<A,I>
 	fn mul(self,src:&Vec<B>)->Self::Output {
 		let mut res=Vec::new();
 		// todo actually this just assumed it's a square matrix, which it needn't be.
-		res.resize(src.len(), <&'a A as Mul<&'a B>>::Output::default());
+		res.resize(src.len(), C::default());
 		for (ref val,(row,col)) in self.values.iter() {
 			res[row.to_usize()]+=val*&src[col.to_usize()]
 		}
 		res
 	}
 }
-*/
 
+
+/// a 'Graph' pairs a node array with a sparse matrix of edge connections.
 #[derive(Debug)]
 pub struct Graph<N,E,Index=u32>{
-	nodes:Vec<N>,
-	edges:SparseMatrixCOO<E,Index>
+	pub nodes:Vec<N>,
+	pub edges:SparseMatrixCOO<E,Index>
 }
 
 
 impl<E,N,Prod, I:MyIndex> Graph<N,E,I> 
-    where 
+    where
+	E:Debug+Default, 
+	N:Debug+Default, 
         for<'x,'y> &'x E:Mul<&'y N,Output=Prod>,
         Prod:'static+AddAssign+Default+Clone
     {
 	
 	pub fn new()->Self{
-		Graph{nodes:vec![],edges:SparseMatrixCOO::new()}
+		Graph{nodes:vec![],edges:SparseMatrixCOO::default()}
 	}
 	pub fn add_node(&mut self,n:N)->I{
 		self.nodes.push(n);
@@ -114,23 +118,16 @@ impl<E,N,Prod, I:MyIndex> Graph<N,E,I>
 
 	}
 
+
 	// apply a function to modify every edge
 	pub fn update_edges<F:Fn(&mut E,&N,&N)>(&mut self,f:F){
-		for &mut (ref mut e,(si,ei)) in self.edges.values.iter_mut() {
-			f(e,&self.nodes[si.to_usize()],&self.nodes[ei.to_usize()]);
-		}
-/*
-		self.edges.foreach_mut(|mut val,rowcol|{
-			// matrix 'row,column' is src,dst 'index'
-			// in the graph case it so happens it's a square matrix.
-			f(val, &self.nodes[rowcol.1.to_usize()], &self.nodes[rowcol.0.to_usize()]);
+		Self::update_edges_sub(&mut self.nodes,&mut self.edges,f);
+	}
+	// subroutine satisies the borrow checker that we're not mutating 'self' in two places.
+	fn update_edges_sub<F:Fn(&mut E,&N,&N)>(nodes:&mut [N],edges:&mut SparseMatrixCOO<E,I>, f:F) {
+		edges.foreach_mut(|mut val,rc| {
+			f(val, &nodes[rc.1.to_usize()], &nodes[rc.0.to_usize()]);
 		});
-*/
-/*
-		for &mut (ref mut e,(si,ei)) in self.edges.iter_mut() {
-			f(e, &self.nodes[si.to_usize()],&self.nodes[ei.to_usize()])
-		}
-*/
 	}
 
 	pub fn update_along_edges<UpdateF:Fn(&mut N,&Prod)>	// function to update node with accumulated messages 
@@ -140,11 +137,9 @@ impl<E,N,Prod, I:MyIndex> Graph<N,E,I>
 		)
 	{
 		let mut acc=vec![Prod::default();self.nodes.len()];
-//		let acc = &self.edges * &self.nodes; // matrix mul reads information from each node across each node-node coupling 
-					// and accumulates into output 'accumulator' vector.
 		let acc = self.edges.mul_dense_vec(&self.nodes);
 		
-		for (i,a) in acc.iter().enumerate(){
+		for (i,a) in acc.iter().enumerate(){	//todo - zip iterator
 			updater(&mut self.nodes[i],a)
 		}
 	}

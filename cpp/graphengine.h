@@ -6,6 +6,7 @@
 
 #define GE_ASSERT(x) if (!(x)){printf("%s:%d error %s",__FILE__,__LINE__,#x);exit(0);}
 
+
 /*
 template<typename NODE,typename EDGE, typename MESSAGE>
 concept GraphNode = requires(NODE& node,const EDGE& e,const MESSAGE& m) {
@@ -24,6 +25,47 @@ concept GraphEdge = requires(const NODE& n0,const NODE& n1,const EDGE& e,const M
 	{node.update();}->bool;
 };
 */
+
+/// Sparse Matrix in index list ("COO") format 
+/// https://en.wikipedia.org/wiki/Sparse_matrix#Coordinate_list_(COO)
+/// compressed formats to come..
+template<typename T,typename INDEX=uint32_t>
+struct SparseMatrixCOO {
+	std::array<INDEX,2> rows_columns;
+	struct Elem { T val; std::array<INDEX,2> pos;};
+	std::vector<Elem> values;
+	
+};
+
+/// trivial implementation of 'sparse matrix X dense vector'
+template<typename A,typename B,typename INDEX=uint32_t>
+std::vector<decltype(A()*B())> operator*(const SparseMatrixCOO<A,INDEX>& mat, const std::vector<B>& srcvec){
+	std::vector<decltype(A()*B())> result;
+	result.resize(mat.row_columns[0], 0);	// output vector, one 'accumulator slot' each.
+
+	for (auto& v : mat.values) {
+		result[v.pos[0]] += v.val * srcvec[ v.pos[1] ];
+	}
+
+	return result;
+};
+
+/// WIP.. "graph engine" rewritten to hold connections in a SparseMatrix.
+template<typename NODE,
+	typename EDGE=float,
+	typename MESSAGE=decltype(NODE().generate_message(EDGE())),
+	typename INDEX=uint32_t>
+class GraphUsingMatrix {
+	std::vector<NODE>	m_nodes;
+	SparseMatrixCOO<EDGE>	m_edges;
+	typedef typename SparseMatrixCOO<EDGE>::Elem SMElem;
+
+	void create_edge(const EDGE& e,INDEX start,INDEX end){
+		m_edges.push_back(SMElem{e,{start,end}});
+	}
+
+};
+
 
 
 template<typename NODE,

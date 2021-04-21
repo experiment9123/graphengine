@@ -3,7 +3,7 @@
 #include "graphengine.h"
 #include <SDL2/SDL.h>
 #include <stdio.h>
-#include "flyaround/vecmathnew.h"
+
 
 #define TRACE printf("%s:%s:%d\n",__FILE__,__FUNCTION__,__LINE__);
 typedef bool Message;

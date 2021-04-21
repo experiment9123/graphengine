@@ -65,10 +65,11 @@ pub fn win_stuff<R:FnMut(&mut Canvas<Window>)>(mut renderf:R)->Result<(),String>
 			}
 	Ok(())
 }
-#[derive(Default,Clone)]
+#[derive(Default,Clone,Debug)]
 struct Edge{}
 
 
+#[derive(Default,Clone,Debug)]
 struct Cell {pos:Vec2,alive:bool}
 
 impl std::ops::Mul<&Cell> for &Edge {
