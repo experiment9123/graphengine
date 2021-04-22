@@ -1,3 +1,4 @@
+
 #![allow(dead_code)]
 #![allow(unused_imports)]
 pub mod vecmath;
@@ -109,7 +110,9 @@ pub struct Graph<N,E,Index=u32>{
 
 
 impl<E:Debug+Clone,N:Debug+Clone,I:MyIndex> Graph<N,E,I> {
+	
 	pub fn add_node(&mut self,n:N)->I{
+
 		self.nodes.push(n);
 		MyIndex::from_usize(self.nodes.len()-1)		
 	}
@@ -151,6 +154,7 @@ impl<E:Debug+Clone,N:Debug+Clone,I:MyIndex> Graph<N,E,I> {
 	}
 	pub fn foreach_edge<F:FnMut(&E,&N,&N)>(&self,mut f:F)
 	{
+		
 		for &(ref e,(ei,si)) in self.edges.values.iter() { 
 			f(e,
 				&self.nodes[si.to_usize()],

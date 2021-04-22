@@ -1,3 +1,6 @@
+#[allow(dead_code)]
+#[allow(unused_imports)]
+
 extern crate rustgraph;
 extern crate sdl2;
 extern crate rand;
@@ -13,7 +16,8 @@ use sdl2::render::{Canvas, Texture, TextureCreator,BlendMode};
 use sdl2::video::{Window, WindowContext};
 use rand::Rng;
 
-pub fn win_stuff<R:FnMut(&mut Canvas<Window>)>(mut renderf:R)->Result<(),String> {
+pub fn win_stuff(renderf:&mut dyn FnMut(&mut Canvas<Window>))->Result<(),String> where
+{
 	let sdl_context = sdl2::init()?;
 	let video_subsystem = sdl_context.video()?;
 
@@ -101,7 +105,7 @@ fn init_gol_grid(graph:&mut Graph<Cell,Edge>) {
 	}
 }
 fn pt(p:Vec2)->Point {
-	Point::new(p.0 as i32,p.1 as i32)
+	Point::new(p.x as i32,p.y as i32)
 }
 
 fn line2d(rc:&mut Canvas<Window>, a:Vec2,b:Vec2){
@@ -127,8 +131,13 @@ fn main(){
 	let mut graph:Graph<Cell,Edge>=  Graph::default();
  	init_gol_grid(&mut graph);
 
-	win_stuff(
-	|canvas|{
+	let va=Vec4(0.1f32,0.5,0.6,1.0);
+	let vb=Vec4(0.5,1.0,0.5,1.0);
+	let bar=va.dot(vb);
+	let vc=va.lerp(vb,0.5);
+	
+	
+	win_stuff(&mut |canvas|{
 		graph.update_along_edges(
 			|node,&acc|{
 				if acc<2 || acc>3{node.alive=false} else
@@ -150,7 +159,7 @@ fn main(){
 
 		graph.foreach_node(|n|{
 			canvas.set_draw_color(if n.alive {Color::RGB(255,255,255)}else{Color::RGB(64,64,64)});
-			canvas.fill_rect(Rect::new(n.pos.0 as i32-s,n.pos.1 as i32 -s,s as u32*2,s as u32*2));
+			canvas.fill_rect(Rect::new(n.pos.x as i32-s,n.pos.y as i32 -s,s as u32*2,s as u32*2));
 		});
 
 		canvas.present();	
