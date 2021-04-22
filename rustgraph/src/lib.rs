@@ -75,7 +75,6 @@ impl<A,I:MyIndex> SparseMatrix<A,I> for SparseMatrixCOO<A,I>
 			f(v,rc)
 		}
 	}
-
 }
 
 

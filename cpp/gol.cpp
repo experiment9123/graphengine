@@ -130,6 +130,9 @@ void render(SDL_Renderer* rs, const MyGraph& gol) {
 }
 
 int main(int argc, const char** argv) {
+
+
+
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_Window* win=SDL_CreateWindow("graph engine test",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,1024,768,0);
 	SDL_Renderer* rs=SDL_CreateRenderer(win,0,0);

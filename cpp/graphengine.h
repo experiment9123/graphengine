@@ -32,12 +32,15 @@ concept GraphEdge = requires(const NODE& n0,const NODE& n1,const EDGE& e,const M
 /// compressed formats to come..
 template<typename T,typename INDEX=uint32_t>
 struct SparseMatrixCOO {
-	std::array<INDEX,2> rows_columns={0,0};
+
+	struct Elem { T val; INDEX row; INDEX column;};
+ 	std::array<INDEX,2> rows_columns={0,0};
 	std::vector<Elem> values;
 	void reduce_vals();
+	bool modified=false;
 public:
-	struct Elem { T val; INDEX row; INDEX column;};// less error prone to call these 'row,col' explicitely.
-	typename T Value;				// easily extracted.
+
+//	typedef typename T Value;				// easily extracted.
 	void insert_at(const T& src, INDEX row,INDEX column){
 		modified=true;
 		rows_columns={std::max(rows_columns[0],row),std::max(rows_columns[1],column)};
