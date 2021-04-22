@@ -1,0 +1,4 @@
+#!/bin/bash
+grep -R "\(fn\|trait\|impl\|struct\)\s" examples --include *.rs
+grep -R "\(fn\|trait\|impl\|struct\)\s" src --include *.rs
+

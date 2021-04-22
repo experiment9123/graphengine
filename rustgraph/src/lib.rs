@@ -37,9 +37,8 @@ pub struct SparseMatrixCOO<T,Index=u32> {
 	pub values:Vec<(T,(Index,Index))>,	// edge data
 }
 
-impl<T,Index:MyIndex> SparseMatrixCOO<T,Index> {
-	pub fn new()->Self{SparseMatrixCOO{rows_columns:(Index::default(),Index::default()),values:vec![]}}
-	pub fn push(&mut self, (v,(r,c)):(T,(Index,Index))){
+impl<T,I:MyIndex> SparseMatrixCOO<T,I> {
+	pub fn push(&mut self, (v,(r,c)):(T,(I,I))){
 		// when inserting elements just assume the whole size must contain them.
 		self.rows_columns=(cmp::max(r,self.rows_columns.0),cmp::max(c,self.rows_columns.1));
 		self.values.push((v,(r,c)));
@@ -109,13 +108,7 @@ pub struct Graph<N,E,Index=u32>{
 
 
 
-impl<E,N,I:MyIndex> Graph<N,E,I> 
-    where
-	N:Debug+Clone,
-	// TODO - single MulAcc trait eg E:MulAcc<N,Output=Acc>
-
-
-    {
+impl<E:Debug+Clone,N:Debug+Clone,I:MyIndex> Graph<N,E,I> {
 	pub fn add_node(&mut self,n:N)->I{
 		self.nodes.push(n);
 		MyIndex::from_usize(self.nodes.len()-1)		
@@ -138,30 +131,26 @@ impl<E,N,I:MyIndex> Graph<N,E,I>
 		});
 	}
 
-	pub fn update_along_edges<Prod,Acc,UpdateF:Fn(&mut N,&Acc)>	// function to update node with accumulated messages 
-	
-		(
-			&mut self,  
-			updater:UpdateF
-		) where
-		        for<'x,'y> &'x E:Mul<&'y N,Output=Prod> + Debug+Clone,
-        Prod:Add<Prod,Output=Acc>,
-        Acc:AddAssign<Prod>+Default+Clone
+	pub fn update_along_edges<P,A,F>(&mut self,update_node:F) where
+		F:Fn(&mut N,&A),
+	        for<'x,'y> &'x E:Mul<&'y N,Output=P> + Debug+Clone,
+       		P:Add<P,Output=A>,
+	        A:AddAssign<P>+Default+Clone
 
 	{
-		let mut acc=vec![Acc::default();self.nodes.len()];
-//		let acc = self.edges.mul_dense_vec(&self.nodes);
-		let acc = &self.edges * &self.nodes;
+		let acc = self.edges.mul(&self.nodes);
 		
 		for (i,a) in acc.iter().enumerate(){	//todo - zip iterator
-			updater(&mut self.nodes[i],a)
+			update_node(&mut self.nodes[i],a)
 		}
 	}
 
-	pub fn foreach_node<F:FnMut(&N)>(&self,mut f:F) {
+	pub fn foreach_node<F:FnMut(&N)>(&self,mut f:F)                                   
+	{
 		for n in self.nodes.iter() { f(n) }
 	}
-	pub fn foreach_edge<F:FnMut(&E,&N,&N)>(&self,mut f:F) {
+	pub fn foreach_edge<F:FnMut(&E,&N,&N)>(&self,mut f:F)
+	{
 		for &(ref e,(ei,si)) in self.edges.values.iter() { 
 			f(e,
 				&self.nodes[si.to_usize()],

@@ -33,16 +33,20 @@ concept GraphEdge = requires(const NODE& n0,const NODE& n1,const EDGE& e,const M
 template<typename T,typename INDEX=uint32_t>
 struct SparseMatrixCOO {
 	std::array<INDEX,2> rows_columns={0,0};
-	struct Elem { T val; INDEX row; INDEX column;};// less error prone to call these 'row,col' explicitely.
 	std::vector<Elem> values;
+	void reduce_vals();
+public:
+	struct Elem { T val; INDEX row; INDEX column;};// less error prone to call these 'row,col' explicitely.
+	typename T Value;				// easily extracted.
 	void insert_at(const T& src, INDEX row,INDEX column){
+		modified=true;
 		rows_columns={std::max(rows_columns[0],row),std::max(rows_columns[1],column)};
 		values.push_back(Elem{src,row,column});
 	}
 	// iterator yields val,row,col
 	auto begin()const {return values.begin();}	
-	auto end()const {return values.begin();}	
-};
+	auto end()const {return values.end();}	
+}; 
 
 /// trivial implementation of 'sparse matrix X dense vector'
 /// (parallel compressed sparse mat  X SPARSE vector is where it'll get highly non-trivial
@@ -66,9 +70,7 @@ std::vector<decltype(A()*B()+A()*B())> operator*(const SparseMatrixCOO<A,INDEX>&
 /// WIP.. "graph engine" rewritten to hold connections in a SparseMatrix.
 /// switches to calling EDGE*NODE,+ to generate and accumulate messages.
 /// the 'message' may represent how that value changes in a time-step
-template<typename NODE,
-	typename EDGE=float,
-	typename INDEX=uint32_t>
+template<typename NODE, typename EDGE=float, typename INDEX=uint32_t>
 class GraphWithEdgeMatrix {
 	std::vector<NODE>	m_nodes;
 	SparseMatrixCOO<EDGE>	m_edges;
