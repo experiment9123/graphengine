@@ -3,194 +3,228 @@ use core::fmt::Debug;
 use std::cmp;
 
 type Scalar=f32;
-trait VElem : Copy+Clone+Debug+Default+Add+Mul+Div+Sub
+pub trait VElem : Copy+Clone+Debug+Default+Add<Output=Self>+Mul<f32,Output=f32>+Into<f32>+From<f32>+Mul<Output=Self>+Div<Output=Self>+Sub<Output=Self> + PartialOrd
 {
 
 }
-impl<T> VElem for T where T:Add+Mul+Div+Sub+Copy+Clone+Debug+Default{
+impl<T> VElem for T where T:Into<f32>+From<f32>+PartialOrd+Add<Output=T>+Mul<Output=T>+Mul<f32,Output=f32>+Div<Output=T>+Sub<Output=T>+Copy+Clone+Debug+Default{
 
 }
 
 #[derive(Debug,Copy,Clone,Default)]
-pub struct Vec2{pub x:Scalar,pub y:Scalar}
+pub struct Vec2<T=f32>{pub x:T,pub y:T}
+#[derive(Copy,Clone,Debug,Default)]
+pub struct Vec3<T=f32>{pub x:T,pub y:T,pub z:T}
+
+#[allow(non_snake_case)]
+pub fn Vec3<T>(x:T,y:T,z:T)->Vec3<T>{Vec3{x:x,y:y,z:z}}
+
+
 #[allow(non_snake_case)]
 
-pub fn Vec2(x:Scalar,y:Scalar)->Vec2{Vec2{x:x,y:y}}
-pub trait Dot {
-	fn dot(self,b:Self)->Scalar;
+pub fn Vec2<T>(x:T,y:T)->Vec2<T>{Vec2{x:x,y:y}}
+pub trait Dot :Sized{
+	type Output : Into<f32>;
+	fn dot(self,b:Self)->Self::Output;
+	fn dot_f32(self,b:Self)->f32 {self.dot(b).into()}
 	
 }
-pub trait Splat {
-	fn splat(f:Scalar)->Self;
-}
+
+fn fmin<T:Copy+PartialOrd>(a:T,b:T)->T{if a<b{a} else {b}}
+fn fmax<T:Copy+PartialOrd>(a:T,b:T)->T{if a>b{a} else {b}}
 
 pub trait MinMax {
 	fn min(self,b:Self)->Self;
 	fn max(self,b:Self)->Self;
 }
-
-impl Splat for Vec2 {fn splat(f:Scalar)->Self{Vec2{x:f,y:f}}}
-impl Splat for Vec3 {fn splat(f:Scalar)->Self{Vec3(f,f,f)}}
-impl Splat for Vec4 {fn splat(f:Scalar)->Self{Vec4(f,f,f,f)}}
-pub trait VecMath :Splat+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Mul<Scalar,Output=Self>+Dot+Sized+MinMax+Copy{
-	fn lerp(self,b:Self,f:Scalar)->Self;
-	fn len(self)->Scalar;
-	fn normalize(self)->Self{self*(1.0f32/self.len())}
-	fn para_perp(self,axis:Self)->(Self,Self){let d=self.dot(axis); let para=axis*d; (para,self-para)}
-}
-impl<V:Dot+Copy+Mul<Scalar,Output=V>+Mul<Output=V>+Add<Output=V>+Sub<Output=V>+MinMax+Splat+Sized> VecMath for V {
-	fn lerp(self,b:V,f:Scalar)->V {
-		self + (b-self)*f
-	}
-	fn len(self)->Scalar {return self.dot(self).sqrt()}
-}
-
-impl MinMax for Vec2{
+impl<T:Copy+PartialOrd> MinMax for Vec2<T>{
 	fn min(self,b:Self)->Self{
-		return Vec2( self.x.min(b.x), self.y.min(b.y) )
+		return Vec2( fmin(self.x,b.x), fmin(self.y,b.y) )
 	}
 	fn max(self,b:Self)->Self{
-		return Vec2( self.x.max(b.x), self.y.max(b.y) )
+		return Vec2( fmax(self.x,b.x), fmax(self.y,b.y) )
 	}
 }
-impl MinMax for Vec3{
+impl<T:VElem> Add for Vec2<T> {
+	type Output=Vec2<T>;
+	fn add(self,rhs:Vec2<T>)->Self::Output {Vec2(self.x+rhs.x,self.y+rhs.y)}
+}
+impl<T:VElem> Sub for Vec2<T> {
+	type Output=Vec2<T>;
+	fn sub(self,rhs:Vec2<T>)->Self::Output {Vec2(self.x-rhs.x,self.y-rhs.y)}
+}
+impl<T:VElem> Mul for Vec2<T> {
+	type Output=Vec2<T>;
+	fn mul(self,rhs:Vec2<T>)->Self::Output {Vec2(self.x*rhs.x,self.y*rhs.y)}
+}
+impl<T:VElem> Mul<T> for Vec2<T> {
+	type Output=Vec2<T>;
+	fn mul(self,rhs:T)->Self::Output {Vec2(self.x*rhs,self.y*rhs)}
+}
+impl Mul<i32> for Vec2<f32> {
+	type Output=(i32,i32);
+	fn mul(self,rhs:i32)->Self::Output {( (self.x*(rhs as f32))as i32,(self.y*(rhs as Scalar))as i32)}
+}
+
+impl<T:VElem> Dot for Vec2<T> {
+	type Output=T;
+	fn dot(self,b:Self)->T {self.x*b.x+self.y*b.y}
+}
+fn clamp<T:PartialOrd+Copy>(val:T,lo:T,hi:T)->T{fmin(hi,fmax(lo,val))}
+impl Vec4<f32> {
+	pub fn unpack(v:u32)->Self {
+		let s=1.0f32/255.0f32;
+		let x=v&255;
+		let y=(v>>8)&255;
+		let z=(v>>16)&255;
+		let w=(v>>24)&255;
+		Vec4(x as f32 * s,y as f32* s,z as f32* s,w  as f32* s)
+
+	}
+	pub fn pack(self)->u32 {
+		let s=255.0f32;
+		let x=clamp((self.x*s) as u32,0,255);
+		let y=clamp((self.y*s) as u32,0,255);
+		let z=clamp((self.z*s) as u32,0,255);
+		let w=clamp((self.w*s) as u32,0,255);
+		x|(y<<8)|(z<<16)|(w<<24)
+	}
+}
+
+pub trait Splat<T> { fn splat(f:T)->Self;}
+impl<T:Copy> Splat<T> for Vec2<T>{ fn splat(f:T)->Self{return Vec2(f,f);} }
+impl<T:Copy> Splat<T> for Vec3<T>{ fn splat(f:T)->Self{return Vec3(f,f,f);} }
+impl<T:Copy> Splat<T> for Vec4<T>{ fn splat(f:T)->Self{return Vec4(f,f,f,f);} }
+
+
+pub trait Scale { fn scale(self,f:f32)->Self;}
+impl<T:Into<f32>+From<f32> > Scale for Vec3<T>{
+	fn scale(self,f:f32)->Self{
+			let x:f32=self.x.into();
+			let y:f32=self.y.into();
+			let z:f32=self.z.into();
+			Vec3((x*f).into(),(y*f).into(),(z*f).into())
+	}
+}
+impl<T:Into<f32>+From<f32> > Scale for Vec4<T>{
+	fn scale(self,f:f32)->Self{
+			let x:f32=self.x.into();
+			let y:f32=self.y.into();
+			let z:f32=self.z.into();
+			let w:f32=self.w.into();
+			Vec4((x*f).into(),(y*f).into(),(z*f).into(),(w*f).into())
+	}
+}
+
+
+pub trait VecMath : Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+Scale+Splat<f32>+MinMax
+{
+	fn zero()->Self{Self::splat(0f32)}
+	fn one()->Self{Self::splat(1f32)}
+	fn len(self)->f32{self.dot_f32(self).sqrt()	}
+	fn normalize(self)->Self{self.scale(1.0f32/self.len())}
+	fn lerp(self,b:Self,f:f32)->Self{(b-self).scale(f)+self}
+	fn para(self,axis:Self)->Self{self.scale(self.dot_f32(axis))}
+	fn para_perp(self,axis:Self)->(Self,Self){let para=self.para(axis); (para,self-para)}
+	fn sqr(self)->f32{self.dot_f32(self)}
+
+}
+
+impl<V> VecMath for V where
+V:Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+Scale+Splat<f32>+MinMax
+{
+
+}
+
+
+
+impl<T:VElem> Add for Vec3<T> {
+	type Output=Self;
+	fn add(self,rhs:Self)->Self::Output {Vec3(self.x+rhs.x,self.y+rhs.y,self.z*rhs.z)}
+}
+impl<T:VElem> Sub for Vec3<T> {
+	type Output=Self;
+	fn sub(self,rhs:Self)->Self::Output {Vec3(self.x-rhs.x,self.y-rhs.y,self.z-rhs.z)}
+}
+impl<T:VElem> Mul for Vec3<T> {
+	type Output=Self;
+	fn mul(self,rhs:Self)->Self::Output {Vec3(self.x*rhs.x,self.y*rhs.y,self.z*rhs.z)}
+}
+impl<T:VElem> Mul<T> for Vec3<T> {
+	type Output=Self;
+	fn mul(self,rhs:T)->Self::Output {Vec3(self.x*rhs,self.y*rhs,self.z*rhs)}
+}
+
+impl<T:VElem> Dot for Vec3<T> {
+	type Output=T;
+	fn dot(self,b:Self)->Self::Output {self.x*b.x+self.y*b.y+self.z*b.z}
+}
+
+#[derive(Copy,Clone,Debug,Default)]
+pub struct Vec4<T=f32>{
+	pub x:T,pub y:T,pub z:T,pub w:T,
+}
+#[allow(non_snake_case)]
+pub fn Vec4<T>(x:T,y:T,z:T,w:T)->Vec4<T>{Vec4{x:x,y:y,z:z,w:w}}
+
+impl<T:VElem> Add for Vec4<T> {
+	type Output=Self;
+	fn add(self,rhs:Self)->Self::Output {Vec4(self.x+rhs.x,self.y+rhs.y,self.z*rhs.z,self.w*rhs.w)}
+}
+impl<T:VElem> Sub for Vec4<T> {
+	type Output=Self;
+	fn sub(self,rhs:Self)->Self::Output {Vec4(self.x-rhs.x,self.y-rhs.y,self.z-rhs.z,self.w-rhs.w)}
+}
+impl<T:VElem> Mul for Vec4<T> {
+	type Output=Self;
+	fn mul(self,rhs:Self)->Self::Output {Vec4(self.x*rhs.x,self.y*rhs.y,self.z*rhs.z,self.w*rhs.w)}
+}
+impl<T:VElem> Mul<T> for Vec4<T> {
+	type Output=Self;
+	fn mul(self,rhs:T)->Self::Output {Vec4(self.x*rhs,self.y*rhs,self.z*rhs,self.w*rhs)}
+}
+
+impl<T:VElem> Dot for Vec4<T> {
+	type Output=T;
+	fn dot(self,b:Self)->Self::Output {self.x*b.x+self.y*b.y+self.z*b.z+self.w*b.w}
+}
+
+impl<T:VElem> MinMax for Vec3<T>{
 	fn min(self,b:Self)->Self{
-		return Vec3( self.x.min(b.x), self.y.min(b.y), self.z.min(b.z) )
+		return Vec3( fmin(self.x,b.x), fmin(self.y,b.y), fmin(self.z,b.z) )
 	}
 	fn max(self,b:Self)->Self{
-		return Vec3( self.x.max(b.x), self.y.max(b.y), self.z.max(b.z) )
+		return Vec3( fmax(self.x,b.x), fmax(self.y,b.y), fmax(self.z,b.z) )
 	}
 }
+
 impl MinMax for Vec4{
 	fn min(self,b:Self)->Self{
-		return Vec4( self.x.min(b.x), self.y.min(b.y), self.z.min(b.z), self.w.min(b.w) )
+		return Vec4( fmin(self.x,b.x), fmin(self.y,b.y), fmin(self.z,b.z), fmin(self.w,b.w)  )
 	}
 	fn max(self,b:Self)->Self{
-		return Vec4( self.x.max(b.x), self.y.max(b.y), self.z.max(b.z) , self.w.max(b.w))
+		return Vec4( fmax(self.x,b.x), fmax(self.y,b.y), fmax(self.z,b.z), fmax(self.w,b.w)  )
 	}
 }
 
 
-
-impl Add for Vec2 {
-	type Output=Vec2;
-	fn add(self,rhs:Vec2)->Vec2 {Vec2(self.x+rhs.x,self.y+rhs.y)}
-}
-impl Sub for Vec2 {
-	type Output=Vec2;
-	fn sub(self,rhs:Vec2)->Vec2 {Vec2(self.x-rhs.x,self.y-rhs.y)}
-}
-impl Mul for Vec2 {
-	type Output=Vec2;
-	fn mul(self,rhs:Vec2)->Vec2 {Vec2(self.x*rhs.x,self.y*rhs.y)}
-}
-impl Mul<f32> for Vec2 {
-	type Output=Vec2;
-	fn mul(self,rhs:Scalar)->Vec2 {Vec2(self.x*rhs,self.y*rhs)}
-}
-impl Mul<i32> for Vec2 {
-	type Output=(i32,i32);
-	fn mul(self,rhs:i32)->(i32,i32) {( (self.x*(rhs as f32))as i32,(self.y*(rhs as Scalar))as i32)}
+struct Vec1<T>{x:T}
+fn Vec1<T>(x:T)->Vec1<T>{Vec1{x:x}}
+impl<T:Copy+PartialOrd> MinMax for Vec1<T>{
+	fn min(self,b:Self)->Self{return Vec1(fmin(self.x,b.x));}
+	fn max(self,b:Self)->Self{return Vec1(fmax(self.x,b.x));}
 }
 
-impl Dot for Vec2 {
-	fn dot(self,b:Vec2)->Scalar {self.x*b.x+self.y*b.y}
-}
-
-
-#[derive(Copy,Clone,Debug,Default)]
-pub struct Vec3{pub x:Scalar,pub y:Scalar,pub z:Scalar}
-#[allow(non_snake_case)]
-pub fn Vec3(x:Scalar,y:Scalar,z:Scalar)->Vec3{Vec3{x:x,y:y,z:z}}
-
-impl Add for Vec3 {
-	type Output=Vec3;
-	fn add(self,rhs:Vec3)->Vec3 {Vec3(self.x+rhs.x,self.y+rhs.y,self.z*rhs.z)}
-}
-impl Sub for Vec3 {
-	type Output=Vec3;
-	fn sub(self,rhs:Vec3)->Vec3 {Vec3(self.x-rhs.x,self.y-rhs.y,self.z-rhs.z)}
-}
-impl Mul for Vec3 {
-	type Output=Vec3;
-	fn mul(self,rhs:Vec3)->Vec3 {Vec3(self.x*rhs.x,self.y*rhs.y,self.z*rhs.z)}
-}
-impl Mul<f32> for Vec3 {
-	type Output=Vec3;
-	fn mul(self,rhs:Scalar)->Vec3 {Vec3(self.x*rhs,self.y*rhs,self.z*rhs)}
-}
-
-impl Dot for Vec3 {
-	fn dot(self,b:Vec3)->Scalar {self.x*b.x+self.y*b.y+self.z*b.z}
-}
-#[derive(Copy,Clone,Debug,Default)]
-pub struct Vec4{
-	pub x:Scalar,pub y:Scalar,pub z:Scalar,pub w:Scalar,
-}
-#[allow(non_snake_case)]
-pub fn Vec4(x:Scalar,y:Scalar,z:Scalar,w:Scalar)->Vec4{Vec4{x:x,y:y,z:z,w:w}}
-impl Add for Vec4 {
-	type Output=Vec4;
-	fn add(self,rhs:Self)->Vec4 {Vec4(self.x+rhs.x,self.y+rhs.y,self.z*rhs.z,self.w*rhs.w)}
-}
-impl Sub for Vec4 {
-	type Output=Vec4;
-	fn sub(self,rhs:Vec4)->Vec4 {Vec4(self.x-rhs.x,self.y-rhs.y,self.z-rhs.z,self.w*rhs.w)}
-}
-impl Mul for Vec4 {
-	type Output=Vec4;
-	fn mul(self,rhs:Vec4)->Vec4 {Vec4(self.x*rhs.x,self.y*rhs.y,self.z*rhs.z,self.w*rhs.w)}
-}
-impl Mul<Scalar> for Vec4 {
-	type Output=Vec4;
-	fn mul(self,rhs:Scalar)->Vec4 {Vec4(self.x*rhs,self.y*rhs,self.z*rhs,self.w*rhs)}
-}
-impl Dot for Vec4 {
-	fn dot(self,b:Vec4)->Scalar {self.x*b.x+self.y*b.y+self.z*b.z+self.w*b.w}
-}
-impl Vec3 {
-	fn cross(self,b:Vec3)->Vec3 {
-		let a=self;
-		Vec3(a.y*b.z - a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x)
-	}
-	fn to_vec4(self,w:Scalar)->Vec4{
-		Vec4(self.x,self.y,self.z,w)
-	}
-	pub fn xy(self)->Vec2{Vec2(self.x,self.y)}
-	pub fn xz(self)->Vec2{Vec2(self.x,self.z)}
-	pub fn yz(self)->Vec2{Vec2(self.y,self.z)}
-}
-
-impl Vec4 {
-	pub fn cross(self,b:Vec4)->Vec4 {
-		let a=self;
-		Vec4(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x, 0.0f32)
-	}
-	pub fn to_vec3(self)->Vec3{
-		Vec3(self.x,self.y,self.z)
-	}
-	pub fn xyz(self)->Vec3{Vec3(self.x,self.y,self.z)}
-	pub fn transpose(a:Vec4,b:Vec4,c:Vec4,d:Vec4)->(Vec4,Vec4,Vec4,Vec4){
-		(
-			Vec4(a.x,b.x,c.x,d.x),
-			Vec4(a.y,b.y,c.y,d.y),
-			Vec4(a.z,b.z,c.z,d.z),
-			Vec4(a.w,b.w,c.w,d.w)
-		)
-	}
-}
 
 struct Extents<V>{min:V,max:V}
-impl<V:VecMath> Extents<V>{
+impl<V:Copy+MinMax+Add<Output=V>+Sub<Output=V>+Scale+Splat<f32>> Extents<V>{
 	fn new()->Extents<V>{
-		Extents{min:V::splat(1000000f32),max:V::splat(-1000000f32)}
+		Extents{min:V::splat(1000000f32),max:V::splat(-100000f32)}
 	}
 	fn size(&self)->V {self.max-self.min}
-	fn centre(&self)->V {(self.max+self.min)*0.5f32}
+	fn centre(&self)->V {(self.max+self.min).scale(0.5f32)}
 	fn include(&mut self,b:V) {self.min=self.min.min(b); self.max=self.max.max(b)}
 }
-
-
 
 
 

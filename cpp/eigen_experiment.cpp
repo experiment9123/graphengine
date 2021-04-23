@@ -1,21 +1,23 @@
 #pragma once
 #include <Eigen/Sparse>
 
-class Foo {public:Foo(){} Foo(int x){}};
-class Bar {public:Bar(){} Bar(int x){}};
-class Baz {public:Baz(){} Baz(int x){}};
-class Qux {public:Qux(){} Qux(const Baz&){printf("Qux(Baz)");} Qux(Baz&){printf("Qux(Baz)");} Qux(int x){}};
-auto operator*(const Foo& a,const Bar& b){printf("Foo*Bar\n");return Baz{};}
-auto operator+(const Baz& a,const Baz& b){printf("Baz+Baz\n");return Baz{};}
-auto operator+=(Baz& a,const Baz& b){printf("Baz+=Baz\n");return a;}
-auto operator+=(Qux& a,const Baz& b){printf("Qux+=Baz\n");return a;}
+// setup for MatElem*VecElem->Prod
+// goal is to add Prod+Prod->Acc,  Acc+=Prod,  Acc(Prod) Acc=0
+class MatElem {public:MatElem(){} MatElem(int x){}};
+class VecElem {public:VecElem(){} VecElem(int x){}};
+class Prod {public:Prod(){} Prod(int x){}};
+class Acc {public:Acc(){} Acc(const Prod&){printf("Acc(Prod)");} Acc(Prod&){printf("Acc(Prod)");} Acc(int x){}};
+auto operator*(const MatElem& a,const VecElem& b){printf("MatElem*VecElem\n");return Prod{};}
+auto operator+(const Prod& a,const Prod& b){printf("Prod+Prod\n");return Prod{};}
+auto operator+=(Prod& a,const Prod& b){printf("Prod+=Prod\n");return a;}
+auto operator+=(Acc& a,const Prod& b){printf("Acc+=Prod\n");return a;}
 template<>
-class Eigen::NumTraits<Foo> {
+class Eigen::NumTraits<MatElem> {
 public:
-	typedef Foo Real;
-	typedef Foo NonInteger;	
-	typedef Foo Literal;
-	typedef Foo Nested;
+	typedef MatElem Real;
+	typedef MatElem NonInteger;	
+	typedef MatElem Literal;
+	typedef MatElem Nested;
 	enum {
 		IsInteger=0,
 		IsSigned=1,
@@ -26,20 +28,20 @@ public:
 		MulCost=1
 		
 	};
-	auto static epsilon(){return Foo();}
-	auto static dummy_precision(){return Foo();}
-	auto static highest(){return Foo();}
-	auto static lowest(){return Foo();}
+	auto static epsilon(){return MatElem();}
+	auto static dummy_precision(){return MatElem();}
+	auto static highest(){return MatElem();}
+	auto static lowest(){return MatElem();}
 	auto static digist10(){return 5;}
 };
 
 template<>
-class Eigen::NumTraits<Bar> {
+class Eigen::NumTraits<VecElem> {
 public:
-	typedef Bar Real;
-	typedef Bar NonInteger;	
-	typedef Bar Literal;
-	typedef Bar Nested;
+	typedef VecElem Real;
+	typedef VecElem NonInteger;	
+	typedef VecElem Literal;
+	typedef VecElem Nested;
 	enum {
 		IsInteger=0,
 		IsSigned=1,
@@ -50,19 +52,19 @@ public:
 		MulCost=1
 		
 	};
-	auto static epsilon(){return Bar{};}
-	auto static dummy_precision(){return Bar{};}
-	auto static highest(){return Bar{};}
-	auto static lowest(){return Bar{};}
+	auto static epsilon(){return VecElem{};}
+	auto static dummy_precision(){return VecElem{};}
+	auto static highest(){return VecElem{};}
+	auto static lowest(){return VecElem{};}
 	auto static digist10(){return 5;}
 };
 template<>
-class Eigen::NumTraits<Baz> {
+class Eigen::NumTraits<Prod> {
 public:
-	typedef Baz Real;
-	typedef Baz NonInteger;	
-	typedef Baz Literal;
-	typedef Baz Nested;
+	typedef Prod Real;
+	typedef Prod NonInteger;	
+	typedef Prod Literal;
+	typedef Prod Nested;
 	enum {
 		IsInteger=0,
 		IsSigned=1,
@@ -73,20 +75,20 @@ public:
 		MulCost=1
 		
 	};
-	auto static epsilon(){return Baz{};}
-	auto static dummy_precision(){return Baz{};}
-	auto static highest(){return Baz{};}
-	auto static lowest(){return Baz{};}
+	auto static epsilon(){return Prod{};}
+	auto static dummy_precision(){return Prod{};}
+	auto static highest(){return Prod{};}
+	auto static lowest(){return Prod{};}
 	auto static digist10(){return 5;}
 };
 
 template<>
-class Eigen::NumTraits<Qux> {
+class Eigen::NumTraits<Acc> {
 public:
-	typedef Qux Real;
-	typedef Qux NonInteger;	
-	typedef Qux Literal;
-	typedef Qux Nested;
+	typedef Acc Real;
+	typedef Acc NonInteger;	
+	typedef Acc Literal;
+	typedef Acc Nested;
 	enum {
 		IsInteger=0,
 		IsSigned=1,
@@ -97,35 +99,36 @@ public:
 		MulCost=1
 		
 	};
-	auto static epsilon(){return Qux{};}
-	auto static dummy_precision(){return Qux{};}
-	auto static highest(){return Qux{};}
-	auto static lowest(){return Qux{};}
+	auto static epsilon(){return Acc{};}
+	auto static dummy_precision(){return Acc{};}
+	auto static highest(){return Acc{};}
+	auto static lowest(){return Acc{};}
 	auto static digist10(){return 5;}
 };
 
 template<>
-struct Eigen::ScalarBinaryOpTraits<Foo,Bar,Eigen::internal::scalar_product_op<Foo, Bar> >{
-	typedef Baz ReturnType;
+struct Eigen::ScalarBinaryOpTraits<MatElem,VecElem,Eigen::internal::scalar_product_op<MatElem, VecElem> >{
+	typedef Prod ReturnType;
 };
 
 template<>
-struct Eigen::ScalarBinaryOpTraits<Foo,Bar,Eigen::internal::scalar_sum_op<Baz, Baz> >{
-	typedef Qux ReturnType;
+struct Eigen::ScalarBinaryOpTraits<Prod,Prod,Eigen::internal::scalar_sum_op<Prod, Prod> >{
+	typedef Prod ReturnType;
 };
 
 
 void eigen_experiment() {
-	Eigen::SparseMatrix<Foo> mymat(3,3);
-	mymat.insert(0,0)=Foo{};
-	mymat.insert(0,1)=Foo{};
-	mymat.insert(1,0)=Foo{};
-	mymat.insert(1,1)=Foo{};
-	Eigen::SparseVector<Bar> myvec(3);
-	myvec.insert(0)=Bar{};
-	myvec.insert(1)=Bar{};
-	Eigen::SparseVector<Baz> tmp=mymat*myvec;
-	//Foo f; f=tmp;
+	Eigen::SparseMatrix<MatElem> mymat(3,3);
+	mymat.insert(0,0)=MatElem{};
+	mymat.insert(0,1)=MatElem{};
+	mymat.insert(1,0)=MatElem{};
+	mymat.insert(1,1)=MatElem{};
+	Eigen::SparseVector<VecElem> myvec(3);
+	myvec.insert(0)=VecElem{};
+	myvec.insert(1)=VecElem{};
+	// Can't seem to do this with "Acc", even if supplying appropriate OpTraits etc above.
+	Eigen::SparseVector<Prod> tmp=mymat*myvec;
+	
 	for (int k=0; k<mymat.outerSize(); ++k){
 		for (decltype(mymat)::InnerIterator v(mymat,k); v;++v){
 			printf("%d %d\n",v.row(),v.col());
@@ -135,4 +138,9 @@ void eigen_experiment() {
 	for (decltype(tmp)::InnerIterator v(tmp); v;++v){
 		printf("%d\n",v.index());
 	}
+}
+
+int main(int argc,const char**){
+	eigen_experiment();
+	return 0;
 }
