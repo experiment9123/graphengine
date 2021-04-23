@@ -266,7 +266,7 @@ impl<V:Copy+MinMax+Add<Output=V>+Sub<Output=V>+Scale+Splat<f32>> Extents<V>{
 struct Matrix4<V=Vec4<f32>>{ax:V,ay:V,az:V,aw:V}
 fn Matrix4<V>(x:V,y:V,z:V,w:V)->Matrix4<V>{Matrix4{ax:x,ay:y,az:z,aw:w}}
 
-impl<T:VElem> Matrix4<Vec4<T>>{}
+
 
 impl<T:VElem> Mul<Vec4<T>> for Matrix4<Vec4<T>> {
 	type Output=Vec4<T>;
@@ -274,12 +274,20 @@ impl<T:VElem> Mul<Vec4<T>> for Matrix4<Vec4<T>> {
 		self.ax*rhs.x+self.ay*rhs.y+self.az*rhs.z+self.aw*rhs.w
 	}
 }
+impl<T:VElem+OneZero> Mul<Vec3<T>> for Matrix4<Vec4<T>> {
+	type Output=Vec3<T>;
+	fn mul(self,rhs:Vec3<T>)->Self::Output{
+		(self.ax*rhs.x+self.ay*rhs.y+self.az*rhs.z).xyz()
+	}
+}
+
 impl<T:VElem> Mul for Matrix4<Vec4<T>> {
 	type Output=Self;
 	fn mul(self,rhs:Self)->Self{
 		Matrix4(self*rhs.ax,self*rhs.ay,self*rhs.az,self*rhs.aw)
 	}
 }
+
 impl<T:VElem+OneZero> Matrix4<Vec4<T>>{
 	fn transpose(self)->Self{
 		Matrix4(
@@ -300,13 +308,28 @@ impl<T:VElem+OneZero> Matrix4<Vec4<T>>{
 		)
 	}
 	fn look_at(pos:Vec3<T>,tgt:Vec3<T>,up:Vec3<T>)->Self{
+		Self::look_along(pos,tgt-pos,up)
+	}
+	fn look_along(pos:Vec3<T>,fwd1:Vec3<T>,up:Vec3<T>)->Self{
 		let i=T::one();
 		let o=T::zero();
-		let fwd=(tgt-pos).normalize();
+		let fwd=fwd1.normalize();
 		let horiz=fwd.cross(up).normalize();
 		let ay=fwd.cross(horiz).normalize();
-		Matrix4(horiz.xyz0(),ay.xyz0(),fwd.xyz0(),Vec4(o,o,o,i))
+		Matrix4(horiz.xyz0(),ay.xyz0(),fwd.xyz0(),pos.xyz1())
 	}
+	fn mul_point(self,rhs:Vec3<T>)->Vec3<T>{
+		(self.ax*rhs.x+self.ay*rhs.y+self.az*rhs.z+self.aw).xyz()
+	}
+	fn inv_mul_point_rt(self,rhs:Vec3<T>)->Vec3<T>{
+		let ofs=(rhs-self.aw.xyz()).xyz0();
+
+		Vec3(ofs.dot(self.ax),ofs.dot(self.ay),ofs.dot(self.az)	)
+	}
+	fn orthonormalize_zyx(self)->Self{
+		Self::look_along(self.aw.xyz(),self.az.xyz(),self.ay.xyz())
+	}
+
 }
 
 
