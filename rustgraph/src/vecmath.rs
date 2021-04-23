@@ -11,6 +11,10 @@ impl<T> VElem for T where T:Into<f32>+From<f32>+PartialOrd+Add<Output=T>+Mul<Out
 
 }
 
+pub trait OneZero :Copy{fn one()->Self;	fn zero()->Self;}
+impl OneZero for f32{	fn one()->Self{1.0f32}	fn zero()->Self{0.0f32}}
+impl OneZero for f64{	fn one()->Self{1.0f64}	fn zero()->Self{0.0f64}}
+
 #[derive(Debug,Copy,Clone,Default)]
 pub struct Vec2<T=f32>{pub x:T,pub y:T}
 #[derive(Copy,Clone,Debug,Default)]
@@ -116,6 +120,29 @@ impl<T:Into<f32>+From<f32> > Scale for Vec4<T>{
 	}
 }
 
+pub trait Cross :Copy{
+	fn cross(self,other:Self)->Self;
+}
+impl<T:VElem+OneZero> Cross for Vec3<T>{
+	fn cross(self,other:Self)->Self{
+		Vec3(
+			self.y*other.z-self.z*other.y,
+			self.z*other.x-self.x*other.z,
+			self.x*other.y-self.y*other.x
+		)
+	}
+}
+impl<T:VElem+OneZero> Cross for Vec4<T>{
+	fn cross(self,other:Self)->Self{
+		Vec4(
+			self.y*other.z-self.z*other.y,
+			self.z*other.x-self.x*other.z,
+			self.x*other.y-self.y*other.x,
+			T::zero()
+		)
+	}
+}
+
 
 pub trait VecMath : Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+Scale+Splat<f32>+MinMax
 {
@@ -126,6 +153,7 @@ pub trait VecMath : Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+
 	fn lerp(self,b:Self,f:f32)->Self{(b-self).scale(f)+self}
 	fn para(self,axis:Self)->Self{self.scale(self.dot_f32(axis))}
 	fn para_perp(self,axis:Self)->(Self,Self){let para=self.para(axis); (para,self-para)}
+	fn perp(self,axis:Self)->Self{self-self.para(axis)}
 	fn sqr(self)->f32{self.dot_f32(self)}
 
 }
@@ -136,6 +164,16 @@ V:Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+Scale+Splat<f32>+M
 
 }
 
+impl<T:OneZero>  Vec4<T>{
+	fn xyz0(self)->Vec4<T>{Vec4(self.x,self.y,self.z,T::zero())}
+	fn xyz1(self)->Vec4<T>{Vec4(self.x,self.y,self.z,T::one())}
+	fn xyz(self)->Vec3<T>{Vec3(self.x,self.y,self.z)}
+}
+
+impl<T:OneZero>  Vec3<T>{
+	fn xyz0(self)->Vec4<T>{Vec4(self.x,self.y,self.z,T::zero())}
+	fn xyz1(self)->Vec4<T>{Vec4(self.x,self.y,self.z,T::one())}
+}
 
 
 impl<T:VElem> Add for Vec3<T> {
