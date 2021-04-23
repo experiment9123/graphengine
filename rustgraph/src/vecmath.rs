@@ -144,10 +144,8 @@ impl<T:VElem+OneZero> Cross for Vec4<T>{
 }
 
 
-pub trait VecMath : Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+Scale+Splat<f32>+MinMax
+pub trait VecMath : Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+Scale+MinMax
 {
-	fn zero()->Self{Self::splat(0f32)}
-	fn one()->Self{Self::splat(1f32)}
 	fn len(self)->f32{self.dot_f32(self).sqrt()	}
 	fn normalize(self)->Self{self.scale(1.0f32/self.len())}
 	fn lerp(self,b:Self,f:f32)->Self{(b-self).scale(f)+self}
@@ -159,7 +157,7 @@ pub trait VecMath : Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+
 }
 
 impl<V> VecMath for V where
-V:Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+Scale+Splat<f32>+MinMax
+V:Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+Scale+MinMax
 {
 
 }
@@ -263,6 +261,55 @@ impl<V:Copy+MinMax+Add<Output=V>+Sub<Output=V>+Scale+Splat<f32>> Extents<V>{
 	fn centre(&self)->V {(self.max+self.min).scale(0.5f32)}
 	fn include(&mut self,b:V) {self.min=self.min.min(b); self.max=self.max.max(b)}
 }
+
+#[derive(Debug,Copy,Clone,Default)]
+struct Matrix4<V=Vec4<f32>>{ax:V,ay:V,az:V,aw:V}
+fn Matrix4<V>(x:V,y:V,z:V,w:V)->Matrix4<V>{Matrix4{ax:x,ay:y,az:z,aw:w}}
+
+impl<T:VElem> Matrix4<Vec4<T>>{}
+
+impl<T:VElem> Mul<Vec4<T>> for Matrix4<Vec4<T>> {
+	type Output=Vec4<T>;
+	fn mul(self,rhs:Vec4<T>)->Self::Output{
+		self.ax*rhs.x+self.ay*rhs.y+self.az*rhs.z+self.aw*rhs.w
+	}
+}
+impl<T:VElem> Mul for Matrix4<Vec4<T>> {
+	type Output=Self;
+	fn mul(self,rhs:Self)->Self{
+		Matrix4(self*rhs.ax,self*rhs.ay,self*rhs.az,self*rhs.aw)
+	}
+}
+impl<T:VElem+OneZero> Matrix4<Vec4<T>>{
+	fn transpose(self)->Self{
+		Matrix4(
+			Vec4(self.ax.x,self.ay.x,self.az.x,self.aw.x),
+			Vec4(self.ax.y,self.ay.y,self.az.y,self.aw.y),
+			Vec4(self.ax.z,self.ay.z,self.az.z,self.aw.z),
+			Vec4(self.ax.w,self.ay.w,self.az.w,self.aw.w)
+		)
+	}
+	fn identity()->Self{
+		let i=T::one();
+		let o=T::zero();
+		Matrix4(
+			Vec4(i,o,o,o),
+			Vec4(o,i,o,o),
+			Vec4(o,o,i,o),
+			Vec4(o,o,o,i),
+		)
+	}
+	fn look_at(pos:Vec3<T>,tgt:Vec3<T>,up:Vec3<T>)->Self{
+		let i=T::one();
+		let o=T::zero();
+		let fwd=(tgt-pos).normalize();
+		let horiz=fwd.cross(up).normalize();
+		let ay=fwd.cross(horiz).normalize();
+		Matrix4(horiz.xyz0(),ay.xyz0(),fwd.xyz0(),Vec4(o,o,o,i))
+	}
+}
+
+
 
 
 
