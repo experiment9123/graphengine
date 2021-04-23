@@ -98,6 +98,7 @@ impl Dot for Vec2 {
 }
 
 
+#[derive(Copy,Clone,Debug,Default)]
 pub struct Vec3{pub x:Scalar,pub y:Scalar,pub z:Scalar}
 #[allow(non_snake_case)]
 pub fn Vec3(x:Scalar,y:Scalar,z:Scalar)->Vec3{Vec3{x:x,y:y,z:z}}
@@ -122,7 +123,7 @@ impl Mul<f32> for Vec3 {
 impl Dot for Vec3 {
 	fn dot(self,b:Vec3)->Scalar {self.x*b.x+self.y*b.y+self.z*b.z}
 }
-#[derive(Copy,Clone,Debug)]
+#[derive(Copy,Clone,Debug,Default)]
 pub struct Vec4{
 	pub x:Scalar,pub y:Scalar,pub z:Scalar,pub w:Scalar,
 }

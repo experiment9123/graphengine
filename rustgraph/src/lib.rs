@@ -128,7 +128,7 @@ impl<E:Debug+Clone,N:Debug+Clone,I:MyIndex> Graph<N,E,I> {
 	}
 	// subroutine satisies the borrow checker that we're not mutating 'self' in two places.
 	fn update_edges_sub<F:Fn(&mut E,&N,&N)>(nodes:&mut [N],edges:&mut SparseMatrixCOO<E,I>, f:F) {
-		edges.foreach_mut(|mut val,rc| {
+		edges.foreach_mut(|val,rc| {
 			f(val, &nodes[rc.1.to_usize()], &nodes[rc.0.to_usize()]);
 		});
 	}

@@ -1,24 +1,76 @@
 extern crate rustgraph;
+mod window;
+use rustgraph::*;
+struct RenderCtx{}
+
+#[derive(Debug,Clone,Default)]
+struct Ctrl {
+	lstick:Vec2,
+	rstick:Vec2,
+	buttons:u32
+}
+
+#[derive(Default)]
+struct ActorBase {
+	pos:Vec3,vel:Vec3,radius:f32,lifetime:i32
+}
+
+struct UpdateCtx {
+	dt:f32,
+	controls:Ctrl
+}
+struct Spawner {} 
+
+// if it doesn't have a render,
+// then it is infact jsut..
+type OptBox<T>=Option<Box<T>>;
+
+trait Agent {
+	fn control(&mut self, obj:&ActorBase)->Ctrl;
+}
+
+// caution we're up to 32bytes of bloat with OptBox for an agent :/ 2*2*8
+// 'actorbase' will be matrix, vel,pos, renderable ptr, lifetime.. 64+32+8.. whole thing should come in ~128-256 bytes.
+struct Actor{base:ActorBase,ex:OptBox<dyn ActorEx>,agent:OptBox<dyn Agent>}
+type AParams<'a,'b,'c> = (&'a mut ActorBase,&'b Ctrl,f32,&'c mut Spawner);
 
 
+trait ActorEx {
+	fn update(&mut self,_:AParams);
+	fn collide(&mut self,sc:&ActorBase,other:&ActorBase,spawner:&mut Spawner){}
+}
+
+struct Null {}
+impl ActorEx for Null {
+	fn update(&mut self,_:AParams){}
+}
+
+struct World {
+	particles:Vec<Actor>,	//no collision
+	projectiles:Vec<Actor>,	//collide vs entities
+	entities:Vec<Actor>,	//collide v eachother.
+}
+
+impl World {
+	fn update(&mut self,uc:&UpdateCtx){
+		let update_sub=|list:&mut Vec<Actor>|{
+			let mut s=Spawner{};
+			for x in list.iter_mut() {
+				if let Some(ref mut ex)=&mut x.ex{
+					let ctrl= if let Some(ref mut a)=&mut x.agent{a.control(&x.base)} else{uc.controls.clone()};
+					ex.update((&mut x.base,&ctrl,uc.dt,&mut s));
+				}
+			}
+		};
+		update_sub(&mut self.particles);
+  		update_sub(&mut self.projectiles);
+		update_sub(&mut self.entities);
+	}
+}
 fn main(){
-	
-	let mut graph:Graph<String,String>= Graph::new(); // test the graph type with Strings for nodes & edges
-	let n0=graph.add_node(String::from("node_foo"));
-	let n1=graph.add_node(String::from("node_bar"));
-	graph.add_edge(String::from("edge_foobar"),n0,n1);
-	println!("graph initial state:\n {:?}\n",graph);
+	window::foo();
 
-	// the "science" would go here..
-	graph.update_along_edges(
-		|_node,_edge|{1u32},  	// send message from node along edge
-		|allmsg,msg|{*allmsg+=msg},// accumualte messages received at a node
-		|node,allmsg:&u32|{node.push_str(&format!("has {} incoming edges",allmsg))}		// update the node once  all messages are accumulated.
-	);
-	println!("graph after update:\n {:?}\n",graph);
-	graph.foreach_edge(|e,n0,n1|{
-		println!("edge:{} start{} end{}\n", e,n0,n1);
-	});
+	println!("done\n");	
 }
 
 
