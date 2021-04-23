@@ -3,11 +3,11 @@ use core::fmt::Debug;
 use std::cmp;
 
 type Scalar=f32;
-pub trait VElem : Copy+Clone+Debug+Default+Add<Output=Self>+Mul<f32,Output=f32>+Into<f32>+From<f32>+Mul<Output=Self>+Div<Output=Self>+Sub<Output=Self> + PartialOrd
+pub trait VElem : Copy+Clone+Debug+Default+Neg<Output=Self>+Add<Output=Self>+Mul<f32,Output=f32>+Into<f32>+From<f32>+Mul<Output=Self>+Div<Output=Self>+Sub<Output=Self> + PartialOrd
 {
 
 }
-impl<T> VElem for T where T:Into<f32>+From<f32>+PartialOrd+Add<Output=T>+Mul<Output=T>+Mul<f32,Output=f32>+Div<Output=T>+Sub<Output=T>+Copy+Clone+Debug+Default{
+impl<T> VElem for T where T:Into<f32>+From<f32>+PartialOrd+Neg<Output=T>+Add<Output=T>+Mul<Output=T>+Mul<f32,Output=f32>+Div<Output=T>+Sub<Output=T>+Copy+Clone+Debug+Default{
 
 }
 
@@ -307,6 +307,48 @@ impl<T:VElem+OneZero> Matrix4<Vec4<T>>{
 			Vec4(o,o,o,i),
 		)
 	}
+	fn scale_vec4(v:Vec4<T>)->Self{
+		let o=T::zero();
+		Matrix4(
+			Vec4(v.x,o,o,o),
+			Vec4(o,v.y,o,o),
+			Vec4(o,o,v.z,o),
+			Vec4(o,o,o,v.w),
+		)		
+	}
+	fn rotx(a:f32)->Self{
+		let s=a.sin().into();
+		let c=a.cos().into();
+		let o=T::zero();
+		let i=T::one();
+		Matrix4(
+			Vec4(i,o,o,o),
+			Vec4(o,c,s,o),
+			Vec4(o,-s,c,o),
+			Vec4(o,o,o,i),
+		)		
+	}
+	fn roty(a:f32)->Self{
+		let s=a.sin().into();	let c=a.cos().into();
+		let o=T::zero();		let i=T::one();
+		Matrix4(
+			Vec4(c,o,s,o),
+			Vec4(o,i,o,o),
+			Vec4(-s,o,c,o),
+			Vec4(o,o,o,i),
+		)		
+	}
+	fn rotz(a:f32)->Self{
+		let s=a.sin().into();	let c=a.cos().into();
+		let o=T::zero();		let i=T::one();
+		Matrix4(
+			Vec4(c,s,o,o),
+			Vec4(-s,c,o,o),
+			Vec4(o,o,o,o),
+			Vec4(o,o,o,i),
+		)		
+	}
+
 	fn look_at(pos:Vec3<T>,tgt:Vec3<T>,up:Vec3<T>)->Self{
 		Self::look_along(pos,tgt-pos,up)
 	}
