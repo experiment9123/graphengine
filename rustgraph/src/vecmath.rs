@@ -162,15 +162,31 @@ V:Copy+Add<Output=Self>+Sub<Output=Self>+Mul<Output=Self>+Dot+Scale+MinMax
 
 }
 
-impl<T:OneZero>  Vec4<T>{
+trait<T:OneZero> PermuteXYZ{
+	fn xyz0(self)->Vec4<T>;
+	fn xyz1(self)->Vec4<T>;
+	fn xyz(self)->Vec3<T>;
+	fn xy(self)->Vec2<T>;
+	fn xz(self)->Vec2<T>;
+	fn yz(self)->Vec2<T>;
+}
+
+impl<T:OneZero> PermuteXYZ for Vec4<T>{
 	fn xyz0(self)->Vec4<T>{Vec4(self.x,self.y,self.z,T::zero())}
 	fn xyz1(self)->Vec4<T>{Vec4(self.x,self.y,self.z,T::one())}
 	fn xyz(self)->Vec3<T>{Vec3(self.x,self.y,self.z)}
+	fn xy(self)->Vec2<T>{Vec2(self.x,self.y)}
+	fn xz(self)->Vec2<T>{Vec2(self.x,self.z)}
+	fn yz(self)->Vec2<T>{Vec2(self.y,self.z)}
 }
 
-impl<T:OneZero>  Vec3<T>{
+impl<T:OneZero>  PermuteXYZ for Vec3<T>{
 	fn xyz0(self)->Vec4<T>{Vec4(self.x,self.y,self.z,T::zero())}
 	fn xyz1(self)->Vec4<T>{Vec4(self.x,self.y,self.z,T::one())}
+	fn xyz(self)->Vec3<T>{self}
+	fn xy(self)->Vec2<T>{Vec2(self.x,self.y)}
+	fn xz(self)->Vec2<T>{Vec2(self.x,self.z)}
+	fn yz(self)->Vec2<T>{Vec2(self.y,self.z)}
 }
 
 

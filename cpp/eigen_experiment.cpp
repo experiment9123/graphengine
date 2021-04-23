@@ -6,7 +6,7 @@
 class MatElem {public:MatElem(){} MatElem(int x){}};
 class VecElem {public:VecElem(){} VecElem(int x){}};
 class Prod {public:Prod(){} Prod(int x){}};
-class Acc {public:Acc(){} Acc(const Prod&){printf("Acc(Prod)");} Acc(Prod&){printf("Acc(Prod)");} Acc(int x){}};
+class Acc {public:Acc(){} Acc(const Prod&){printf("Acc(Prod)\n");} Acc(Prod&){printf("Acc(Prod)\n");} Acc(int x){}};
 auto operator*(const MatElem& a,const VecElem& b){printf("MatElem*VecElem\n");return Prod{};}
 auto operator+(const Prod& a,const Prod& b){printf("Prod+Prod\n");return Prod{};}
 auto operator+=(Prod& a,const Prod& b){printf("Prod+=Prod\n");return a;}
@@ -108,26 +108,29 @@ public:
 
 template<>
 struct Eigen::ScalarBinaryOpTraits<MatElem,VecElem,Eigen::internal::scalar_product_op<MatElem, VecElem> >{
-	typedef Prod ReturnType;
+	typedef Acc ReturnType;
 };
 
 template<>
 struct Eigen::ScalarBinaryOpTraits<Prod,Prod,Eigen::internal::scalar_sum_op<Prod, Prod> >{
-	typedef Prod ReturnType;
+	typedef Acc ReturnType;
 };
 
 
 void eigen_experiment() {
 	Eigen::SparseMatrix<MatElem> mymat(3,3);
 	mymat.insert(0,0)=MatElem{};
-	mymat.insert(0,1)=MatElem{};
+
+	mymat.insert(0,2)=MatElem{};
 	mymat.insert(1,0)=MatElem{};
-	mymat.insert(1,1)=MatElem{};
+
+	mymat.insert(1,2)=MatElem{};
 	Eigen::SparseVector<VecElem> myvec(3);
 	myvec.insert(0)=VecElem{};
 	myvec.insert(1)=VecElem{};
-	// Can't seem to do this with "Acc", even if supplying appropriate OpTraits etc above.
-	Eigen::SparseVector<Prod> tmp=mymat*myvec;
+	myvec.insert(2)=VecElem{};
+
+	Eigen::SparseVector<Acc> tmp=mymat*myvec;
 	
 	for (int k=0; k<mymat.outerSize(); ++k){
 		for (decltype(mymat)::InnerIterator v(mymat,k); v;++v){
@@ -144,3 +147,7 @@ int main(int argc,const char**){
 	eigen_experiment();
 	return 0;
 }
+
+
+
+
